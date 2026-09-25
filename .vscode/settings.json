@@ -1,0 +1,6 @@
+{
+  "files.exclude": { "node_modules": true, ".data": true },
+  "search.exclude": { "dist": true, "package-lock.json": true, ".data": true },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.tabSize": 2
+}
