@@ -7,7 +7,7 @@ test('jornada de visitante, editor sem metadados, navegação e treino', async (
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Você fala essa linguagem?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Você conhece essa linguagem?' })).toBeVisible();
   await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
   await expect(page.locator('.code-editor code')).toBeVisible();
   await expect(page.locator('.code-editor code')).toContainText('const scores');

@@ -333,7 +333,7 @@ export default function App() {
                         </>
                       ) : page === 'daily' ? (
                         <>
-                          Você fala essa linguagem<span>?</span>
+                          Você conhece essa linguagem<span>?</span>
                         </>
                       ) : page === 'acronym' ? (
                         <>
