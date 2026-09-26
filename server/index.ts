@@ -10,7 +10,12 @@ if (config.production && !config.databaseUrl)
   );
 if (config.production && (!config.supabaseUrl || !config.supabaseKey))
   throw new Error('Configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY em produção.');
-const db = await openDatabase(config.databaseUrl, config.databaseSsl, config.dataDir);
+const db = await openDatabase(
+  config.databaseUrl,
+  config.databaseSsl,
+  config.dataDir,
+  config.databaseCaCertFile,
+);
 if (db.kind === 'local') {
   await migrate(db);
   await seedDemo(db);

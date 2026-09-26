@@ -1,5 +1,5 @@
 -- Execute este arquivo uma única vez no SQL Editor de um projeto Supabase novo.
--- Ele reproduz 001_initial.sql e registra a migração para o servidor reconhecer o esquema.
+-- Ele reproduz 001_initial.sql e 002_profile_avatar.sql e registra ambas as migrações.
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS game;
 REVOKE ALL ON SCHEMA game FROM PUBLIC;
@@ -130,5 +130,7 @@ END $$;
 
 
 INSERT INTO game.schema_migrations (name) VALUES ('001_initial.sql');
+ALTER TABLE game.profiles ADD COLUMN avatar_url text;
+INSERT INTO game.schema_migrations (name) VALUES ('002_profile_avatar.sql');
 COMMIT;
 

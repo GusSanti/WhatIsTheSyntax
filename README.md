@@ -28,6 +28,7 @@ O código aparece em um editor de leitura com numeração de linhas, destaque vi
 - **Treino:** tentativas ilimitadas por meio de novas partidas, sem alterar os rankings.
 
 O login com Google está integrado ao Supabase Auth e requer a configuração do provedor. Em desenvolvimento, uma conta identificada como demonstração permite experimentar o ranking local.
+Cada jogador conectado pode escolher seu nome público no cabeçalho ou no ranking. A foto da conta Google aparece no perfil e na classificação; a pontuação continua associada ao identificador da conta, mesmo após mudar o nome.
 
 ## Uma interface feita para observar
 

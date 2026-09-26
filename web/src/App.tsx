@@ -14,16 +14,18 @@ import {
   History,
   LoaderCircle,
   LogOut,
+  Pencil,
   Sparkles,
   Target,
   Trophy,
   UserRound,
   X,
 } from 'lucide-react';
-import type { ArchiveDay, Bootstrap, DailyChallenge, Difficulty } from '../../shared/contracts';
+import type { ArchiveDay, Bootstrap, DailyChallenge, Difficulty, Profile } from '../../shared/contracts';
 import { api, errorMessage, getAuth, RequestError, setAccessToken } from './api';
 import { difficultyNames, formatDate, formatNumber } from './lib';
 import { Modal } from './components/Modal';
+import { Avatar } from './components/Avatar';
 import { GameBoard } from './components/GameBoard';
 import { ArchivePage, RankingPage } from './components/OtherPages';
 
@@ -44,9 +46,12 @@ export default function App() {
   const [boot, setBoot] = useState<Bootstrap | null>(null);
   const [error, setError] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
-  const [modal, setModal] = useState<'login' | 'rules' | null>(null);
+  const [modal, setModal] = useState<'login' | 'rules' | 'profile' | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [profileName, setProfileName] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileBusy, setProfileBusy] = useState(false);
   const [practice, setPractice] = useState<DailyChallenge | null>(null);
   const [clock, setClock] = useState(Date.now());
   const [resetOffset, setResetOffset] = useState(0);
@@ -145,6 +150,25 @@ export default function App() {
     setAuthError('');
     setModal('login');
   };
+  const openProfile = () => {
+    setProfileName(boot?.profile?.name || '');
+    setProfileError('');
+    setModal('profile');
+  };
+  async function saveProfile(event: React.FormEvent) {
+    event.preventDefault();
+    setProfileBusy(true);
+    setProfileError('');
+    try {
+      const result = await api<{ profile: Profile }>('/profile', { name: profileName });
+      setBoot((current) => current && { ...current, profile: result.profile });
+      setModal(null);
+    } catch (error) {
+      setProfileError(errorMessage(error));
+    } finally {
+      setProfileBusy(false);
+    }
+  }
   const choosePractice = (challenge: DailyChallenge) => {
     setPractice(challenge);
     navigate(`practice/${challenge.id}`);
@@ -241,8 +265,8 @@ export default function App() {
             </button>
             {boot?.profile ? (
               <>
-                <span className="account-label">
-                  <span className="avatar">{boot.profile.name.slice(0, 1)}</span>
+                <button className="account-label account-button" onClick={openProfile} aria-label="Editar nome público">
+                  <Avatar name={boot.profile.name} url={boot.profile.avatarUrl} />
                   <span>
                     {boot.profile.name}
                     <small>
@@ -251,7 +275,8 @@ export default function App() {
                         : `${formatNumber(boot.profile.totalPoints)} pontos`}
                     </small>
                   </span>
-                </span>
+                  <Pencil size={13} className="account-pencil" />
+                </button>
                 <button
                   className="icon-button"
                   onClick={() => void logout()}
@@ -310,6 +335,7 @@ export default function App() {
                 profile={boot.profile}
                 local={boot.config.storage === 'local'}
                 onLogin={openLogin}
+                onEditProfile={openProfile}
               />
             )}
             {page === 'archive' && <ArchivePage onSelect={choosePractice} />}
@@ -644,6 +670,31 @@ export default function App() {
           <p className="modal-footnote">
             Prefere explorar? Todos os desafios podem ser jogados sem conta.
           </p>
+        </Modal>
+      )}
+      {modal === 'profile' && boot?.profile && (
+        <Modal title="Seu nome no ranking." onClose={() => setModal(null)}>
+          <p className="modal-description">
+            Escolha como os outros jogadores verão você. Seus pontos continuam ligados à sua conta.
+          </p>
+          <form className="profile-form" onSubmit={(event) => void saveProfile(event)}>
+            <label htmlFor="public-name">Nome público</label>
+            <input
+              id="public-name"
+              className="text-input"
+              value={profileName}
+              onChange={(event) => setProfileName(event.target.value)}
+              maxLength={24}
+              autoComplete="nickname"
+              required
+              disabled={profileBusy}
+            />
+            <p>De 3 a 24 caracteres. Letras, números, espaços, ponto, hífen ou sublinhado.</p>
+            {profileError && <div className="feedback error" role="alert">{profileError}</div>}
+            <button className="button primary full-width" type="submit" disabled={profileBusy}>
+              {profileBusy ? <LoaderCircle size={17} className="spin" /> : 'Salvar nome'}
+            </button>
+          </form>
         </Modal>
       )}
       {modal === 'rules' && (

@@ -1,4 +1,5 @@
 import { readFile, readdir, mkdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
 import { PGlite } from '@electric-sql/pglite';
@@ -17,13 +18,29 @@ export async function openDatabase(
   url = '',
   ssl = false,
   dataDir = '.data/pglite',
+  caCertFile = '',
 ): Promise<Database> {
   if (url) {
     const pool = new pg.Pool({
       connectionString: url,
       max: 5,
-      ssl: ssl ? { rejectUnauthorized: true } : undefined,
+      min: 2,
+      idleTimeoutMillis: 5 * 60_000,
+      ssl: ssl
+        ? {
+            rejectUnauthorized: true,
+            ...(caCertFile ? { ca: readFileSync(resolve(caCertFile), 'utf8') } : {}),
+          }
+        : undefined,
     });
+    // Abre as conexões antes de aceitar tráfego; o primeiro jogador não paga o handshake remoto.
+    const ready = await Promise.allSettled([pool.connect(), pool.connect(), pool.connect()]);
+    for (const result of ready) if (result.status === 'fulfilled') result.value.release();
+    const failed = ready.find((result) => result.status === 'rejected');
+    if (failed?.status === 'rejected') {
+      await pool.end();
+      throw failed.reason;
+    }
     return {
       kind: 'postgres',
       async query<T>(sql: string, params?: unknown[]) {

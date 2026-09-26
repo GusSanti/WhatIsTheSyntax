@@ -6,6 +6,7 @@ import {
   gameDate,
   normalizeAcronym,
   normalizeLanguage,
+  normalizePublicName,
 } from './domain.js';
 import type {
   DailyChallenge,
@@ -41,10 +42,20 @@ type SessionRow = {
   started_at: Date;
   finished_at: Date | null;
 };
-const dailySql = `SELECT d.id, d.day::text, d.challenge_id, c.mode, c.difficulty, c.prompt, s.source_code
-  FROM game.daily_challenges d JOIN game.challenges c ON c.id = d.challenge_id
-  LEFT JOIN game.code_snippets s ON s.id = c.snippet_id`;
-
+type GuessRow = {
+  attempt: number;
+  request_id: string;
+  submitted_text: string;
+  normalized_text: string;
+  correct: boolean;
+};
+type GuessContext = SessionRow &
+  DailyRow & {
+    resolved_daily_id: string;
+    candidate_language_id: string | null;
+    answer_correct: boolean;
+    guess_rows: GuessRow[];
+  };
 export class GameService {
   constructor(
     public db: Database,
@@ -61,12 +72,13 @@ export class GameService {
     } = await this.db.query<{
       id: string;
       display_name: string;
+      avatar_url: string | null;
       provider: 'google' | 'local';
       total: string;
       monthly: string;
     }>(
       `
-      SELECT p.id, p.display_name, p.provider, COALESCE(SUM(s.points),0)::text AS total,
+      SELECT p.id, p.display_name, p.avatar_url, p.provider, COALESCE(SUM(s.points),0)::text AS total,
         COALESCE(SUM(s.points) FILTER (WHERE to_char(s.challenge_day,'YYYY-MM') = $2),0)::text AS monthly
       FROM game.profiles p LEFT JOIN game.score_events s ON s.profile_id = p.id WHERE p.id = $1 GROUP BY p.id`,
       [id, gameDate(this.now()).slice(0, 7)],
@@ -75,11 +87,21 @@ export class GameService {
       ? {
           id: row.id,
           name: row.display_name,
+          avatarUrl: row.avatar_url,
           provider: row.provider,
           totalPoints: Number(row.total),
           monthlyPoints: Number(row.monthly),
         }
       : null;
+  }
+
+  async updateDisplayName(profileId: string | null, value: string): Promise<Profile> {
+    if (!profileId) throw new ApiError(401, 'Entre na sua conta para mudar o nome público.');
+    const name = normalizePublicName(value);
+    await this.db.query('UPDATE game.profiles SET display_name=$2 WHERE id=$1', [profileId, name]);
+    const profile = await this.profile(profileId);
+    if (!profile) throw new ApiError(404, 'Perfil não encontrado.');
+    return profile;
   }
 
   async listDaily(principal: Principal, day: string): Promise<DailyChallenge[]> {
@@ -109,8 +131,24 @@ export class GameService {
 
   async start(principal: Principal, dailyId: string, restart = false): Promise<Game> {
     return this.db.transaction(async (tx) => {
-      const daily = await this.daily(tx, dailyId);
       const today = gameDate(this.now());
+      const {
+        rows: [found],
+      } = await tx.query<DailyRow & { previous_session: SessionRow | null }>(
+        `SELECT d.id, d.day::text, d.challenge_id, c.mode, c.difficulty, c.prompt,
+          s.source_code, to_jsonb(previous) AS previous_session
+        FROM game.daily_challenges d
+        JOIN game.challenges c ON c.id=d.challenge_id
+        LEFT JOIN game.code_snippets s ON s.id=c.snippet_id
+        LEFT JOIN LATERAL (
+          SELECT * FROM game.game_sessions g WHERE g.actor_key=$2 AND g.daily_id=d.id
+            AND g.practice=(d.day < $3::date)
+          ORDER BY g.started_at DESC LIMIT 1
+        ) previous ON true WHERE d.id=$1`,
+        [dailyId, principal.actorKey, today],
+      );
+      if (!found) throw new ApiError(404, 'Desafio não encontrado.');
+      const daily: DailyRow = found;
       if (daily.day > today) throw new ApiError(404, 'Essa edição ainda não está disponível.');
       const practice = daily.day < today;
       // Histórico competitivo não vira treino nem volta a pontuar na mudança de dia.
@@ -120,13 +158,7 @@ export class GameService {
         WHERE actor_key=$1 AND daily_id=$2 AND status='playing' AND NOT practice`,
           [principal.actorKey, dailyId, this.now()],
         );
-      const {
-        rows: [previous],
-      } = await tx.query<SessionRow>(
-        `SELECT * FROM game.game_sessions
-        WHERE actor_key=$1 AND daily_id=$2 AND practice=$3 ORDER BY started_at DESC LIMIT 1`,
-        [principal.actorKey, dailyId, practice],
-      );
+      const previous = found.previous_session;
       if (previous && (!practice || !restart || previous.status === 'playing'))
         return this.publicGame(tx, previous, daily);
       const {
@@ -144,14 +176,13 @@ export class GameService {
           this.now(),
         ],
       );
-      const session =
-        created ||
-        (
-          await tx.query<SessionRow>(
-            'SELECT * FROM game.game_sessions WHERE actor_key=$1 AND daily_id=$2 ORDER BY started_at DESC LIMIT 1',
-            [principal.actorKey, dailyId],
-          )
-        ).rows[0];
+      if (created) return this.formatGame(created, daily, []);
+      const {
+        rows: [session],
+      } = await tx.query<SessionRow>(
+        'SELECT * FROM game.game_sessions WHERE actor_key=$1 AND daily_id=$2 ORDER BY started_at DESC LIMIT 1',
+        [principal.actorKey, dailyId],
+      );
       return this.publicGame(tx, session, daily);
     });
   }
@@ -164,23 +195,40 @@ export class GameService {
   ): Promise<Game> {
     return this.db.transaction(async (tx) => {
       const {
-        rows: [session],
-      } = await tx.query<SessionRow>(
-        'SELECT * FROM game.game_sessions WHERE id=$1 AND actor_key=$2 FOR UPDATE',
-        [sessionId, principal.actorKey],
+        rows: [row],
+      } = await tx.query<GuessContext>(
+        `SELECT g.*, d.id AS resolved_daily_id, d.day::text, d.challenge_id,
+          c.mode, c.difficulty, c.prompt, s.source_code,
+          la.language_id AS candidate_language_id,
+          CASE WHEN c.mode='acronym' THEN EXISTS (
+            SELECT 1 FROM game.challenge_answers a
+            WHERE a.challenge_id=c.id AND a.normalized_text=$4
+          ) ELSE COALESCE(s.language_id=la.language_id, false) OR EXISTS (
+            SELECT 1 FROM game.challenge_answers a
+            WHERE a.challenge_id=c.id AND a.language_id=la.language_id
+          ) END AS answer_correct,
+          COALESCE((SELECT json_agg(json_build_object(
+            'attempt', q.attempt, 'request_id', q.request_id,
+            'submitted_text', q.submitted_text, 'normalized_text', q.normalized_text,
+            'correct', q.correct) ORDER BY q.attempt)
+            FROM game.guesses q WHERE q.session_id=g.id), '[]'::json) AS guess_rows
+        FROM game.game_sessions g
+        JOIN game.daily_challenges d ON d.id=g.daily_id
+        JOIN game.challenges c ON c.id=d.challenge_id
+        LEFT JOIN game.code_snippets s ON s.id=c.snippet_id
+        LEFT JOIN game.language_aliases la ON la.normalized_alias=$3
+        WHERE g.id=$1 AND g.actor_key=$2 FOR UPDATE OF g`,
+        [sessionId, principal.actorKey, normalizeLanguage(text), normalizeAcronym(text)],
       );
-      if (!session) throw new ApiError(404, 'Partida não encontrada.');
-      const daily = await this.daily(tx, session.daily_id);
-      const {
-        rows: [repeated],
-      } = await tx.query<{ submitted_text: string }>(
-        'SELECT submitted_text FROM game.guesses WHERE session_id=$1 AND request_id=$2',
-        [sessionId, requestId],
-      );
+      if (!row) throw new ApiError(404, 'Partida não encontrada.');
+      const session: SessionRow = row;
+      const daily: DailyRow = { ...row, id: row.resolved_daily_id };
+      const guesses = row.guess_rows;
+      const repeated = guesses.find((guess) => guess.request_id === requestId);
       if (repeated) {
         if (repeated.submitted_text !== text.trim())
           throw new ApiError(409, 'Identificador de envio já utilizado.');
-        return this.publicGame(tx, session, daily);
+        return this.formatGame(session, daily, guesses);
       }
       if (session.status !== 'playing') throw new ApiError(409, 'Essa partida já foi encerrada.');
       const now = this.now();
@@ -189,39 +237,20 @@ export class GameService {
           `UPDATE game.game_sessions SET status='expired', finished_at=$2 WHERE id=$1`,
           [sessionId, now],
         );
-        return this.publicGame(tx, { ...session, status: 'expired', finished_at: now }, daily);
+        return this.formatGame({ ...session, status: 'expired', finished_at: now }, daily, guesses);
       }
       let normalized: string, correct: boolean;
       if (daily.mode === 'acronym') {
         normalized = normalizeAcronym(text);
         if (!normalized) throw new ApiError(422, 'Escreva o significado da sigla.');
-        const { rows } = await tx.query(
-          'SELECT 1 FROM game.challenge_answers WHERE challenge_id=$1 AND normalized_text=$2',
-          [daily.challenge_id, normalized],
-        );
-        correct = rows.length > 0;
+        correct = row.answer_correct;
       } else {
-        const {
-          rows: [language],
-        } = await tx.query<{ language_id: string }>(
-          'SELECT language_id FROM game.language_aliases WHERE normalized_alias=$1',
-          [normalizeLanguage(text)],
-        );
-        if (!language)
+        if (!row.candidate_language_id)
           throw new ApiError(422, 'Escolha uma linguagem da lista ou use um nome reconhecido.');
-        normalized = `language:${language.language_id}`;
-        const { rows } = await tx.query(
-          `SELECT 1 FROM game.challenges c LEFT JOIN game.code_snippets s ON s.id=c.snippet_id
-          WHERE c.id=$1 AND (s.language_id=$2 OR EXISTS (SELECT 1 FROM game.challenge_answers a WHERE a.challenge_id=c.id AND a.language_id=$2))`,
-          [daily.challenge_id, language.language_id],
-        );
-        correct = rows.length > 0;
+        normalized = `language:${row.candidate_language_id}`;
+        correct = row.answer_correct;
       }
-      const duplicates = await tx.query(
-        'SELECT 1 FROM game.guesses WHERE session_id=$1 AND normalized_text=$2',
-        [sessionId, normalized],
-      );
-      if (duplicates.rows.length)
+      if (guesses.some((guess) => guess.normalized_text === normalized))
         throw new ApiError(
           409,
           'Você já tentou essa resposta. Escolha outra sem perder uma tentativa.',
@@ -231,23 +260,48 @@ export class GameService {
       const points =
         correct && session.ranked ? calculatePoints(daily.difficulty, attempt, elapsed) : 0;
       const status: GameStatus = correct ? 'won' : attempt === 3 ? 'lost' : 'playing';
-      await tx.query(
-        'INSERT INTO game.guesses (session_id,request_id,attempt,submitted_text,normalized_text,correct,submitted_at) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [sessionId, requestId, attempt, text.trim(), normalized, correct, now],
-      );
       const {
         rows: [updated],
       } = await tx.query<SessionRow>(
-        'UPDATE game.game_sessions SET attempts=$2,status=$3,points=$4,finished_at=$5 WHERE id=$1 RETURNING *',
-        [sessionId, attempt, status, points, status === 'playing' ? null : now],
+        `WITH saved_guess AS (
+          INSERT INTO game.guesses
+          (session_id,request_id,attempt,submitted_text,normalized_text,correct,submitted_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING session_id
+        ), updated AS (
+          UPDATE game.game_sessions SET attempts=$3,status=$8,points=$9,finished_at=$10
+          WHERE id=(SELECT session_id FROM saved_guess) RETURNING *
+        ), scored AS (
+          INSERT INTO game.score_events
+          (session_id,profile_id,challenge_day,points,attempts,elapsed_ms,created_at)
+          SELECT id,$11,$12,$9,$3,$13,$7 FROM updated WHERE $9 > 0
+          ON CONFLICT (session_id) DO NOTHING
+        ) SELECT * FROM updated`,
+        [
+          sessionId,
+          requestId,
+          attempt,
+          text.trim(),
+          normalized,
+          correct,
+          now,
+          status,
+          points,
+          status === 'playing' ? null : now,
+          principal.profileId,
+          daily.day,
+          elapsed,
+        ],
       );
-      if (points > 0)
-        await tx.query(
-          `INSERT INTO game.score_events (session_id,profile_id,challenge_day,points,attempts,elapsed_ms,created_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (session_id) DO NOTHING`,
-          [sessionId, principal.profileId, daily.day, points, attempt, elapsed, now],
-        );
-      return this.publicGame(tx, updated, daily);
+      return this.formatGame(updated, daily, [
+        ...guesses,
+        {
+          attempt,
+          request_id: requestId,
+          submitted_text: text.trim(),
+          normalized_text: normalized,
+          correct,
+        },
+      ]);
     });
   }
 
@@ -269,6 +323,7 @@ export class GameService {
     const { rows } = await this.db.query<{
       id: string;
       name: string;
+      avatar_url: string | null;
       points: string;
       wins: string;
       position: string;
@@ -276,7 +331,7 @@ export class GameService {
     }>(
       `
       WITH totals AS (
-        SELECT p.id, p.display_name AS name, SUM(s.points) AS points, COUNT(*) AS wins, MIN(s.created_at) AS first_score
+        SELECT p.id, p.display_name AS name, p.avatar_url, SUM(s.points) AS points, COUNT(*) AS wins, MIN(s.created_at) AS first_score
         FROM game.score_events s JOIN game.profiles p ON p.id=s.profile_id
         WHERE ($1 = 'all' OR to_char(s.challenge_day,'YYYY-MM')=$2) GROUP BY p.id
       ), ranked AS (
@@ -287,6 +342,7 @@ export class GameService {
     const entries: RankingEntry[] = rows.map((row) => ({
       id: row.id,
       name: row.name,
+      avatarUrl: row.avatar_url,
       points: Number(row.points),
       wins: Number(row.wins),
       position: Number(row.position),
@@ -301,20 +357,20 @@ export class GameService {
     };
   }
 
-  private async daily(db: Queryable, id: string) {
-    const {
-      rows: [daily],
-    } = await db.query<DailyRow>(`${dailySql} WHERE d.id=$1`, [id]);
-    if (!daily) throw new ApiError(404, 'Desafio não encontrado.');
-    return daily;
-  }
-
   private async publicGame(db: Queryable, session: SessionRow, daily: DailyRow): Promise<Game> {
     const { rows } = await db.query<{ attempt: number; submitted_text: string; correct: boolean }>(
       'SELECT attempt,submitted_text,correct FROM game.guesses WHERE session_id=$1 ORDER BY attempt',
       [session.id],
     );
     // Lista explícita: nunca espalhar linhas SQL no JSON público.
+    return this.formatGame(session, daily, rows);
+  }
+
+  private formatGame(
+    session: SessionRow,
+    daily: DailyRow,
+    rows: Pick<GuessRow, 'attempt' | 'submitted_text' | 'correct'>[],
+  ): Game {
     return {
       id: session.id,
       dailyId: daily.id,

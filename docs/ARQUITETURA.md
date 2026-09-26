@@ -52,7 +52,7 @@ As tabelas ficam no schema privado `game`, separado dos dados de autenticação 
 
 | Tabela              | O que armazena                                                                                                                               | Relações principais                                               |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `profiles`          | Cadastro público do jogador: identificador, nome de exibição, provedor e vínculo com a identidade autenticada. Não armazena senha ou e-mail. | Recebe partidas e eventos de pontos.                              |
+| `profiles`          | Identificador, nome público editável, foto Google validada, provedor e vínculo com a identidade autenticada. Não armazena senha ou e-mail. | Recebe partidas e eventos de pontos.                              |
 | `languages`         | Catálogo canônico de linguagens, como Python, C# e JavaScript.                                                                               | Referenciada por aliases, trechos e respostas aceitas.            |
 | `language_aliases`  | Nomes normalizados e abreviações aceitas, como `js` e `csharp`.                                                                              | Muitos aliases pertencem a uma linguagem.                         |
 | `code_snippets`     | Texto do código, linguagem principal, chave editorial privada e informação de origem.                                                        | **Cada trecho aponta diretamente para uma linguagem.**            |
@@ -152,7 +152,7 @@ As publicações remotas são orientadas a dados: cada dia precisa de cinco regi
 
 ## Autenticação e ambiente
 
-O frontend usa o fluxo OAuth PKCE do Supabase. A API verifica o token com `auth.getUser()` e só então vincula o resultado ao perfil. O nome público inicial é um pseudônimo; e-mail e nome completo do Google não aparecem no ranking.
+O frontend usa o fluxo OAuth PKCE do Supabase. A API verifica o token com `auth.getUser()` e só então vincula o resultado ao perfil. O nome público inicial é um pseudônimo editável; a alteração não modifica o identificador ou os eventos de pontos. A foto Google é atualizada a partir da identidade verificada e aceita apenas URLs HTTPS de `googleusercontent.com`. E-mail e nome completo do Google não aparecem automaticamente no ranking.
 
 `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` formam a configuração pública necessária para iniciar o login. A API rejeita configurações com chave secreta ou `service_role` para impedir que uma credencial administrativa seja enviada ao navegador.
 
@@ -166,7 +166,7 @@ Os testes verificam normalização, pontuação, mudança de dia/mês, privacida
 
 O Playwright inicia servidores em portas separadas (5183/3011), com banco em memória e sem credenciais externas, para não alterar as partidas da revisão local.
 
-O login Google real e a conexão com um Supabase remoto dependem das credenciais do proprietário e ainda não foram exercitados nesta entrega. O servidor está preparado como aplicação Node persistente; não há implantação pública ou configuração de Vercel Functions nesta versão.
+O login Google e a conexão com PostgreSQL remoto já foram exercitados no ambiente local do proprietário. A foto Google ainda depende de verificação visual com uma sessão real após esta alteração. O servidor está preparado como aplicação Node persistente; não há implantação pública ou configuração de Vercel Functions nesta versão.
 
 O limite de requisições é mantido por processo, adequado à primeira versão local. Uma implantação com várias instâncias precisa de limitação compartilhada ou no provedor de hospedagem. Backups, retenção de sessões antigas, administração editorial, alteração de apelido e gerenciamento de conta ainda precisam de uma próxima etapa antes de operação pública contínua.
 

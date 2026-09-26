@@ -73,7 +73,7 @@ test('servidor de desenvolvimento bloqueia arquivos privados fora da interface',
   }
 });
 
-test('modal acessível e conta local para revisar o ranking', async ({ page }) => {
+test('modal acessível e conta local para revisar o ranking', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -90,7 +90,11 @@ test('modal acessível e conta local para revisar o ranking', async ({ page }) =
   }
   await expect(page.getByText('Boa! Você reconheceu as pistas.')).toBeVisible();
   await page.getByRole('navigation').getByRole('link', { name: 'Ranking', exact: true }).click();
-  await expect(page.locator('.your-row')).toContainText('Dev explorador');
+  const publicName = testInfo.project.name === 'mobile' ? 'Curioso Mobile' : 'Curioso Desktop';
+  await page.getByRole('button', { name: 'Editar nome público' }).first().click();
+  await page.getByRole('textbox', { name: 'Nome público' }).fill(publicName);
+  await page.getByRole('button', { name: 'Salvar nome' }).click();
+  await expect(page.locator('.your-row')).toContainText(publicName);
   await page.getByRole('button', { name: 'Sair da conta', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible();
 });

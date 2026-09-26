@@ -225,6 +225,18 @@ button {
   font-size: 12px;
   font-weight: 600;
 }
+.account-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.account-pencil {
+  color: var(--muted);
+  margin-left: 3px;
+}
 .account-label small {
   display: block;
   font-size: 10px;
@@ -233,6 +245,7 @@ button {
   color: var(--muted);
 }
 .avatar {
+  position: relative;
   display: inline-grid;
   place-items: center;
   width: 31px;
@@ -244,6 +257,14 @@ button {
   font-weight: 650;
   color: #696e53;
   flex-shrink: 0;
+}
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 .main-nav {
   border-top: 1px solid #eeeee7;
@@ -1704,6 +1725,28 @@ td:last-child {
   margin-top: 16px;
   margin-bottom: 22px;
 }
+.profile-form {
+  display: grid;
+  gap: 10px;
+}
+.profile-form label {
+  font-size: 12px;
+  font-weight: 650;
+}
+.profile-form .text-input {
+  width: 100%;
+}
+.profile-form p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.profile-form .feedback {
+  margin: 0;
+}
+.profile-form .button {
+  margin-top: 10px;
+}
 .google-button {
   border: 1px solid #d8ddce;
   background: white;
@@ -1934,7 +1977,8 @@ td:last-child {
     gap: 7px;
     min-height: 36px;
   }
-  .account-label > span:last-child {
+  .account-label > span:nth-child(2),
+  .account-pencil {
     display: none;
   }
   .nav-inner {

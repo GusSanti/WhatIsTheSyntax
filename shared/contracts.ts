@@ -5,6 +5,7 @@ export type GameStatus = 'playing' | 'won' | 'lost' | 'expired';
 export type Profile = {
   id: string;
   name: string;
+  avatarUrl: string | null;
   provider: 'google' | 'local';
   totalPoints: number;
   monthlyPoints: number;
@@ -54,6 +55,7 @@ export type RankingEntry = {
   position: number;
   id: string;
   name: string;
+  avatarUrl: string | null;
   points: number;
   wins: number;
   isYou: boolean;

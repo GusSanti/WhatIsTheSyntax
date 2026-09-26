@@ -14,6 +14,21 @@ export type AuthOptions = {
 const COOKIE = 'syntax_visitor';
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
+function googleAvatarUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== 'https:' ||
+      !(url.hostname === 'googleusercontent.com' || url.hostname.endsWith('.googleusercontent.com'))
+    )
+      return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function createAuth(db: Database, options: AuthOptions) {
   if (options.supabaseKey && !options.supabaseKey.startsWith('sb_publishable_')) {
     let role: string | undefined;
@@ -35,6 +50,7 @@ export function createAuth(db: Database, options: AuthOptions) {
           auth: { persistSession: false, autoRefreshToken: false },
         })
       : null;
+  const profiles = new Map<string, { id: string; expires: number }>();
 
   async function newVisitor(res: Response, localProfileId: string | null = null) {
     const token = randomBytes(32).toString('hex');
@@ -56,37 +72,50 @@ export function createAuth(db: Database, options: AuthOptions) {
 
   return {
     async identify(req: Request, res: Response): Promise<Principal> {
-      const token = req.cookies?.[COOKIE];
-      let visitor =
-        typeof token === 'string' && /^[a-f0-9]{64}$/.test(token)
-          ? (
-              await db.query<{ id: string; local_profile_id: string | null }>(
-                'SELECT id,local_profile_id FROM game.visitor_sessions WHERE token_hash=$1 AND expires_at > now()',
-                [hash(token)],
-              )
-            ).rows[0]
-          : undefined;
-      if (!visitor) visitor = await newVisitor(res);
-      let profileId = options.localAuth && !options.production ? visitor.local_profile_id : null;
-      if (req.headers.authorization) {
-        if (!supabase || !req.headers.authorization.startsWith('Bearer '))
+      const authorization = req.headers.authorization;
+      if (authorization) {
+        if (!supabase || !authorization.startsWith('Bearer '))
           throw new ApiError(401, 'Entre novamente para continuar.');
-        const accessToken = req.headers.authorization.slice(7);
-        const { data, error } = await supabase.auth.getUser(accessToken);
-        if (error || !data.user || !data.user.app_metadata.providers?.includes('google'))
+        const accessToken = authorization.slice(7);
+        const { data, error } = await supabase.auth.getClaims(accessToken);
+        const claims = data?.claims;
+        if (
+          error ||
+          !claims ||
+          claims.role !== 'authenticated' ||
+          typeof claims.sub !== 'string' ||
+          !Array.isArray(claims.app_metadata?.providers) ||
+          !claims.app_metadata.providers.includes('google')
+        )
           throw new ApiError(401, 'Sua sessão expirou. Entre novamente com Google.');
-        // Nome público pseudônimo: não expõe nome completo ou e-mail do Google.
-        const subject = `google:${data.user.id}`;
-        const name = `Dev ${data.user.id.slice(0, 6)}`;
-        const {
-          rows: [profile],
-        } = await db.query<{ id: string }>(
-          `INSERT INTO game.profiles(auth_subject,provider,display_name)
-          VALUES ($1,'google',$2) ON CONFLICT (auth_subject) DO UPDATE SET auth_subject=EXCLUDED.auth_subject RETURNING id`,
-          [subject, name],
-        );
-        profileId = profile.id;
+        const subject = `google:${claims.sub}`;
+        let profile = profiles.get(subject);
+        if (!profile || profile.expires <= Date.now()) {
+          const avatar = googleAvatarUrl(claims.user_metadata?.avatar_url);
+          const {
+            rows: [saved],
+          } = await db.query<{ id: string }>(
+            `INSERT INTO game.profiles(auth_subject,provider,display_name,avatar_url)
+            VALUES ($1,'google',$2,$3) ON CONFLICT (auth_subject)
+            DO UPDATE SET avatar_url=EXCLUDED.avatar_url RETURNING id`,
+            [subject, `Dev ${claims.sub.slice(0, 6)}`, avatar],
+          );
+          profile = { id: saved.id, expires: Date.now() + 5 * 60_000 };
+          if (profiles.size >= 1000) profiles.delete(profiles.keys().next().value!);
+          profiles.set(subject, profile);
+        }
+        // Apenas o logout precisa da sessão anônima; jogos autenticados usam o perfil.
+        if (req.path !== '/auth/logout' && req.path !== '/auth/local')
+          return { visitorId: '', profileId: profile.id, actorKey: `user:${profile.id}` };
+        const visitor = await findVisitor(req);
+        return {
+          visitorId: visitor?.id || (await newVisitor(res)).id,
+          profileId: profile.id,
+          actorKey: `user:${profile.id}`,
+        };
       }
+      const visitor = (await findVisitor(req)) || (await newVisitor(res));
+      const profileId = options.localAuth && !options.production ? visitor.local_profile_id : null;
       return {
         visitorId: visitor.id,
         profileId,
@@ -110,4 +139,15 @@ export function createAuth(db: Database, options: AuthOptions) {
       await db.query('DELETE FROM game.visitor_sessions WHERE id=$1', [visitorId]);
     },
   };
+
+  async function findVisitor(req: Request) {
+    const token = req.cookies?.[COOKIE];
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return undefined;
+    return (
+      await db.query<{ id: string; local_profile_id: string | null }>(
+        'SELECT id,local_profile_id FROM game.visitor_sessions WHERE token_hash=$1 AND expires_at > now()',
+        [hash(token)],
+      )
+    ).rows[0];
+  }
 }

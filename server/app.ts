@@ -24,6 +24,7 @@ const startSchema = z
 const guessSchema = z
   .object({ answer: z.string().trim().min(1).max(160), requestId: z.string().uuid() })
   .strict();
+const profileSchema = z.object({ name: z.string().max(80) }).strict();
 
 export function createApp(db: Database, options: Options) {
   const app = express();
@@ -40,7 +41,7 @@ export function createApp(db: Database, options: Options) {
               scriptSrc: ["'self'"],
               styleSrc: ["'self'", "'unsafe-inline'"],
               fontSrc: ["'self'"],
-              imgSrc: ["'self'", 'data:'],
+              imgSrc: ["'self'", 'data:', 'https://googleusercontent.com', 'https://*.googleusercontent.com'],
               connectSrc: ["'self'", ...(options.supabaseUrl ? [options.supabaseUrl] : [])],
               objectSrc: ["'none'"],
               baseUri: ["'self'"],
@@ -85,6 +86,16 @@ export function createApp(db: Database, options: Options) {
         standardHeaders: 'draft-8',
         legacyHeaders: false,
         message: { error: 'Aguarde um minuto antes de entrar novamente.' },
+      }),
+    );
+    app.use(
+      '/api/profile',
+      rateLimit({
+        windowMs: 60_000,
+        limit: 10,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        message: { error: 'Aguarde um minuto antes de editar o perfil novamente.' },
       }),
     );
   }
@@ -142,6 +153,10 @@ export function createApp(db: Database, options: Options) {
   app.post('/api/auth/logout', async (_req, res) => {
     await auth.logout(res, principal(res).visitorId);
     res.json({ ok: true });
+  });
+  app.post('/api/profile', async (req, res) => {
+    const body = profileSchema.parse(req.body);
+    res.json({ profile: await service.updateDisplayName(principal(res).profileId, body.name) });
   });
   app.post('/api/sessions', async (req, res) => {
     const body = startSchema.parse(req.body);

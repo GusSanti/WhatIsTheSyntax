@@ -29,6 +29,19 @@ export function normalizeAcronym(value: string) {
     .trim()
     .replace(/\s+/g, ' ');
 }
+export function normalizePublicName(value: string) {
+  const name = value.normalize('NFKC').trim().replace(/\s+/g, ' ');
+  if (
+    Array.from(name).length < 3 ||
+    Array.from(name).length > 24 ||
+    !/^[\p{L}\p{N}]+(?:[ ._-][\p{L}\p{N}]+)*$/u.test(name)
+  )
+    throw new ApiError(
+      422,
+      'Use de 3 a 24 caracteres: letras, números, espaços, ponto, hífen ou sublinhado.',
+    );
+  return name;
+}
 export function gameDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TIME_ZONE,

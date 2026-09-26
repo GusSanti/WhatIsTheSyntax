@@ -168,6 +168,24 @@ test('conta local: ponto atômico, tentativa idempotente e requisições concorr
   assert.equal(ranking.entries[0].position, 1);
 });
 
+test('nome público pode mudar sem alterar identidade ou pontos', async () => {
+  const guest = request.agent(app);
+  await guest.post('/api/profile').send({ name: 'Jogador novo' }).expect(401);
+  const agent = request.agent(app);
+  await agent.post('/api/auth/local').send({}).expect(200);
+  const before: Bootstrap = (await agent.get('/api/bootstrap')).body;
+  await agent.post('/api/profile').send({ name: 'x' }).expect(422);
+  await agent.post('/api/profile').send({ name: 'Nome valido', points: 999 }).expect(400);
+  const changed = (await agent.post('/api/profile').send({ name: '  João   Silva  ' }).expect(200))
+    .body.profile;
+  assert.equal(changed.name, 'João Silva');
+  assert.equal(changed.id, before.profile?.id);
+  assert.equal(changed.totalPoints, before.profile?.totalPoints);
+  const ranking = (await agent.get('/api/ranking?period=all').expect(200)).body;
+  assert.equal(ranking.own.name, 'João Silva');
+  assert.equal(ranking.own.points, before.profile?.totalPoints);
+});
+
 test('sigla aceita formatação, exige termo completo; framework usa aliases', async () => {
   const agent = request.agent(app);
   const acronym = await start(agent, 'acronym', 'standard');

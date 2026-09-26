@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { ArchiveDay, DailyChallenge, Profile, Ranking } from '../../../shared/contracts';
 import { api, errorMessage } from '../api';
+import { Avatar } from './Avatar';
 import { difficultyNames, formatDate, formatNumber, modeNames } from '../lib';
 
 export function ArchivePage({ onSelect }: { onSelect: (challenge: DailyChallenge) => void }) {
@@ -133,10 +134,12 @@ export function ArchivePage({ onSelect }: { onSelect: (challenge: DailyChallenge
 export function RankingPage({
   profile,
   onLogin,
+  onEditProfile,
   local,
 }: {
   profile: Profile | null;
   onLogin: () => void;
+  onEditProfile: () => void;
   local: boolean;
 }) {
   const [period, setPeriod] = useState<'month' | 'all'>('month');
@@ -158,7 +161,7 @@ export function RankingPage({
     return () => {
       alive = false;
     };
-  }, [period, profile?.id, retry]);
+  }, [period, profile?.id, profile?.name, profile?.avatarUrl, retry]);
   const entries =
     ranking?.entries.filter((row) => row.name.toLowerCase().includes(search.toLowerCase())) || [];
   return (
@@ -242,7 +245,7 @@ export function RankingPage({
                       </td>
                       <td>
                         <span className="table-player">
-                          <span className="avatar">{entry.name.slice(0, 1).toUpperCase()}</span>
+                          <Avatar name={entry.name} url={entry.avatarUrl} />
                           {entry.name}
                           {entry.isYou && <small>você</small>}
                         </span>
@@ -288,6 +291,7 @@ export function RankingPage({
                   {ranking?.own ? `#${ranking.own.position}` : '—'}
                 </span>
                 <h3>{profile.name}</h3>
+                <button className="text-link" onClick={onEditProfile}>Editar nome público</button>
                 <p>
                   {ranking?.own
                     ? `${formatNumber(ranking.own.points)} pontos · ${ranking.own.wins} acertos`
