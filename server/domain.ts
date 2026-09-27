@@ -20,6 +20,15 @@ export const BASE_POINTS: Record<Difficulty, number> = {
 export function normalizeLanguage(value: string) {
   return value.normalize('NFKC').trim().toLocaleLowerCase('en-US').replace(/\s+/g, ' ');
 }
+const LANGUAGE_ALIASES: Record<string, string> = {
+  csharp: 'c#', 'c sharp': 'c#', cpp: 'c++', 'c plus plus': 'c++',
+  js: 'javascript', 'java script': 'javascript', ts: 'typescript',
+  'type script': 'typescript', py: 'python', rb: 'ruby', golang: 'go',
+};
+export function resolveLanguage(value: string) {
+  const normalized = normalizeLanguage(value);
+  return LANGUAGE_ALIASES[normalized] || normalized;
+}
 export function normalizeAcronym(value: string) {
   return value
     .normalize('NFKD')

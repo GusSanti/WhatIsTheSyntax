@@ -26,5 +26,6 @@ export const config = {
   localAuth: process.env.NODE_ENV !== 'production' && process.env.LOCAL_DEMO_AUTH !== 'false',
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY || '',
+  visitorCookieSecret: process.env.VISITOR_COOKIE_SECRET || '',
   trustProxyHops: Number(process.env.TRUST_PROXY_HOPS || 0),
 };

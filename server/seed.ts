@@ -1,7 +1,7 @@
 // Catálogo de DEMONSTRAÇÃO exclusivo do servidor. Nunca importar em web/ ou shared/.
 // Para um jogo público, cadastre conteúdo inédito diretamente no banco privado.
 import type { Database, Queryable } from './db.js';
-import { gameDate, shiftDate, normalizeLanguage, normalizeAcronym } from './domain.js';
+import { gameDate, shiftDate } from './domain.js';
 
 const languageNames = [
   'C',
@@ -29,15 +29,6 @@ const languageNames = [
   'Swift',
   'TypeScript',
 ];
-const aliases: Record<string, string[]> = {
-  'C#': ['csharp', 'c sharp'],
-  'C++': ['cpp', 'c plus plus'],
-  JavaScript: ['js', 'java script'],
-  TypeScript: ['ts', 'type script'],
-  Python: ['py'],
-  Ruby: ['rb'],
-  Go: ['golang'],
-};
 const codeTemplates = {
   easy: [
     {
@@ -116,32 +107,20 @@ const frameworks = [
 export async function seedDemo(db: Database, now = new Date()) {
   await db.transaction(async (tx) => {
     const languageIds = new Map<string, string>();
+    const difficultyByLanguage = new Map<string, string>();
+    for (const difficulty of ['easy', 'medium', 'hard'] as const)
+      for (const template of codeTemplates[difficulty])
+        difficultyByLanguage.set(template.language, difficulty);
     for (const name of languageNames) {
       await tx.query(
-        'INSERT INTO game.languages (name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-        [name],
+        'INSERT INTO game.languages (name,difficulty) VALUES ($1,$2) ON CONFLICT (name) DO UPDATE SET difficulty=EXCLUDED.difficulty',
+        [name, difficultyByLanguage.get(name) || 'medium'],
       );
       const {
         rows: [language],
       } = await tx.query<{ id: string }>('SELECT id FROM game.languages WHERE name = $1', [name]);
       languageIds.set(name, language.id);
-      for (const alias of [name, ...(aliases[name] || [])]) {
-        await tx.query('INSERT INTO game.language_aliases VALUES ($1, $2) ON CONFLICT DO NOTHING', [
-          normalizeLanguage(alias),
-          language.id,
-        ]);
-      }
     }
-    const addAnswer = async (challengeId: string, language?: string, text?: string) => {
-      await tx.query(
-        'INSERT INTO game.challenge_answers (challenge_id, language_id, normalized_text) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
-        [
-          challengeId,
-          language ? languageIds.get(language) : null,
-          text ? normalizeAcronym(text) : null,
-        ],
-      );
-    };
     for (let offset = 0; offset < 8; offset++) {
       const day = shiftDate(gameDate(now), -offset);
       for (const difficulty of ['easy', 'medium', 'hard'] as const) {
@@ -149,8 +128,8 @@ export async function seedDemo(db: Database, now = new Date()) {
         const template = codeTemplates[difficulty][offset % 3];
         const n = 50 + (Number(day.replaceAll('-', '')) % 39);
         await tx.query(
-          'INSERT INTO game.code_snippets (editorial_key, language_id, source_code) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
-          [key, languageIds.get(template.language), template.code(n)],
+          'INSERT INTO game.code_snippets (editorial_key, language_id, source_code, accepted_language_names) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+          [key, languageIds.get(template.language), template.code(n), 'extra' in template && template.extra ? [template.extra] : []],
         );
         const {
           rows: [snippet],
@@ -158,8 +137,7 @@ export async function seedDemo(db: Database, now = new Date()) {
           'SELECT id FROM game.code_snippets WHERE editorial_key = $1',
           [key],
         );
-        const challengeId = await addChallenge(tx, key, 'code', difficulty, null, snippet.id);
-        if ('extra' in template && template.extra) await addAnswer(challengeId, template.extra);
+        const challengeId = await addChallenge(tx, key, 'code', snippet.id, null, null);
         await tx.query(
           'INSERT INTO game.daily_challenges (day, slot, challenge_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
           [day, `code-${difficulty}`, challengeId],
@@ -167,12 +145,22 @@ export async function seedDemo(db: Database, now = new Date()) {
       }
       for (const mode of ['acronym', 'framework'] as const) {
         const [prompt, answer] = (mode === 'acronym' ? acronyms : frameworks)[offset];
-        const id = await addChallenge(tx, `demo-${day}-${mode}`, mode, 'standard', prompt, null);
-        await addAnswer(
-          id,
-          mode === 'framework' ? answer : undefined,
-          mode === 'acronym' ? answer : undefined,
-        );
+        let frameworkId: string | null = null;
+        let acronymId: string | null = null;
+        if (mode === 'framework') {
+          const { rows: [row] } = await tx.query<{ id: string }>(
+            'INSERT INTO game.frameworks(name,language_id) VALUES ($1,$2) ON CONFLICT (name) DO UPDATE SET language_id=EXCLUDED.language_id RETURNING id',
+            [prompt, languageIds.get(answer)],
+          );
+          frameworkId = row.id;
+        } else {
+          const { rows: [row] } = await tx.query<{ id: string }>(
+            'INSERT INTO game.acronyms(acronym,definition) VALUES ($1,$2) ON CONFLICT (acronym) DO UPDATE SET definition=EXCLUDED.definition RETURNING id',
+            [prompt, answer],
+          );
+          acronymId = row.id;
+        }
+        const id = await addChallenge(tx, `demo-${day}-${mode}`, mode, null, frameworkId, acronymId);
         await tx.query(
           'INSERT INTO game.daily_challenges (day, slot, challenge_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
           [day, mode, id],
@@ -186,13 +174,13 @@ async function addChallenge(
   db: Queryable,
   key: string,
   mode: string,
-  difficulty: string,
-  prompt: string | null,
   snippetId: string | null,
+  frameworkId: string | null,
+  acronymId: string | null,
 ) {
   await db.query(
-    'INSERT INTO game.challenges (editorial_key, mode, difficulty, prompt, snippet_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',
-    [key, mode, difficulty, prompt, snippetId],
+    'INSERT INTO game.challenges (editorial_key, mode, snippet_id, framework_id, acronym_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',
+    [key, mode, snippetId, frameworkId, acronymId],
   );
   const {
     rows: [row],

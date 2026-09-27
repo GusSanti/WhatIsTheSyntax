@@ -15,7 +15,7 @@
     "start": "cross-env NODE_ENV=production node dist/server/index.js",
     "db:migrate": "tsx server/scripts/database.ts migrate",
     "db:seed": "tsx server/scripts/database.ts seed",
-    "test": "tsx --test tests/domain.test.ts tests/api.test.ts tests/persistence.test.ts",
+    "test": "tsx --test tests/domain.test.ts tests/api.test.ts tests/persistence.test.ts tests/migration.test.ts",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm test && npm run build && npm run verify:public",
     "format": "prettier --write .",

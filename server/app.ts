@@ -147,11 +147,11 @@ export function createApp(db: Database, options: Options) {
     });
   });
   app.post('/api/auth/local', async (_req, res) => {
-    await auth.loginLocal(res, principal(res).visitorId);
+    await auth.loginLocal(res);
     res.json({ ok: true });
   });
   app.post('/api/auth/logout', async (_req, res) => {
-    await auth.logout(res, principal(res).visitorId);
+    await auth.logout(res);
     res.json({ ok: true });
   });
   app.post('/api/profile', async (req, res) => {

@@ -18,6 +18,7 @@ const options = {
   origin: 'http://localhost:5173',
   rateLimits: false,
   clock: () => clock,
+  visitorCookieSecret: 'test-secret-that-is-at-least-32-characters-long',
 };
 const send = (
   agent: ReturnType<typeof request.agent>,
@@ -158,8 +159,11 @@ test('conta local: ponto atômico, tentativa idempotente e requisições concorr
     assert.equal(result.body.guesses.length, 1);
   }
   await send(agent, game, 'Python', requestId).expect(409);
-  const events = await db.query('SELECT * FROM game.score_events WHERE session_id=$1', [game.id]);
-  assert.equal(events.rows.length, 1);
+  const scored = await db.query<{ points: number; guesses: { requestId: string; text: string }[] }>('SELECT points,guesses FROM game.game_sessions WHERE id=$1', [game.id]);
+  assert.equal(scored.rows[0].points, 113);
+  assert.deepEqual(scored.rows[0].guesses.map((guess) => [guess.requestId, guess.text]), [[requestId, 'js']]);
+  const total = await db.query<{ points: number }>('SELECT points FROM game.profiles WHERE id=$1', [boot.profile?.id]);
+  assert.equal(total.rows[0].points, 113);
   const afterBoot: Bootstrap = (await agent.get('/api/bootstrap')).body;
   assert.equal(afterBoot.profile?.totalPoints, 113);
   assert.equal(afterBoot.profile?.monthlyPoints, 113);

@@ -14,7 +14,8 @@ async function inspect(directory) {
     if (!/\.(js|html|json|css)$/.test(entry.name)) continue;
     const content = await readFile(path, 'utf8');
     for (const secret of [
-      'game.challenge_answers',
+      'game.acronyms',
+      'game.frameworks',
       'game.code_snippets',
       'source_code',
       'editorial_key',

@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import type { Request, Response } from 'express';
 import type { Database } from './db.js';
@@ -10,9 +10,9 @@ export type AuthOptions = {
   localAuth: boolean;
   supabaseUrl: string;
   supabaseKey: string;
+  visitorCookieSecret?: string;
 };
 const COOKIE = 'syntax_visitor';
-const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
 function googleAvatarUrl(value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 2048) return null;
@@ -30,6 +30,10 @@ function googleAvatarUrl(value: unknown): string | null {
 }
 
 export function createAuth(db: Database, options: AuthOptions) {
+  if (options.production && (!options.visitorCookieSecret || options.visitorCookieSecret.length < 32))
+    throw new Error('VISITOR_COOKIE_SECRET deve ter pelo menos 32 caracteres em produção.');
+  const secret = options.visitorCookieSecret || randomBytes(32).toString('hex');
+  const sign = (payload: string) => createHmac('sha256', secret).update(payload).digest('hex');
   if (options.supabaseKey && !options.supabaseKey.startsWith('sb_publishable_')) {
     let role: string | undefined;
     try {
@@ -52,15 +56,10 @@ export function createAuth(db: Database, options: AuthOptions) {
       : null;
   const profiles = new Map<string, { id: string; expires: number }>();
 
-  async function newVisitor(res: Response, localProfileId: string | null = null) {
-    const token = randomBytes(32).toString('hex');
-    const {
-      rows: [visitor],
-    } = await db.query<{ id: string; local_profile_id: string | null }>(
-      "INSERT INTO game.visitor_sessions(token_hash,local_profile_id,expires_at) VALUES ($1,$2,now()+interval '30 days') RETURNING id,local_profile_id",
-      [hash(token), localProfileId],
-    );
-    res.cookie(COOKIE, token, {
+  function newVisitor(res: Response, localProfileId: string | null = null) {
+    const visitor = { id: randomBytes(16).toString('hex'), local_profile_id: localProfileId };
+    const payload = Buffer.from(JSON.stringify({ ...visitor, expires: Date.now() + 30 * 86400_000 })).toString('base64url');
+    res.cookie(COOKIE, `${payload}.${sign(payload)}`, {
       httpOnly: true,
       secure: options.production,
       sameSite: 'lax',
@@ -104,25 +103,16 @@ export function createAuth(db: Database, options: AuthOptions) {
           if (profiles.size >= 1000) profiles.delete(profiles.keys().next().value!);
           profiles.set(subject, profile);
         }
-        // Apenas o logout precisa da sessão anônima; jogos autenticados usam o perfil.
-        if (req.path !== '/auth/logout' && req.path !== '/auth/local')
-          return { visitorId: '', profileId: profile.id, actorKey: `user:${profile.id}` };
-        const visitor = await findVisitor(req);
-        return {
-          visitorId: visitor?.id || (await newVisitor(res)).id,
-          profileId: profile.id,
-          actorKey: `user:${profile.id}`,
-        };
+        return { profileId: profile.id, actorKey: `user:${profile.id}` };
       }
-      const visitor = (await findVisitor(req)) || (await newVisitor(res));
+      const visitor = findVisitor(req) || newVisitor(res);
       const profileId = options.localAuth && !options.production ? visitor.local_profile_id : null;
       return {
-        visitorId: visitor.id,
         profileId,
         actorKey: profileId ? `user:${profileId}` : `guest:${visitor.id}`,
       };
     },
-    async loginLocal(res: Response, visitorId: string) {
+    async loginLocal(res: Response) {
       if (!options.localAuth || options.production)
         throw new ApiError(404, 'Recurso não disponível.');
       const {
@@ -131,23 +121,25 @@ export function createAuth(db: Database, options: AuthOptions) {
         id: string;
       }>(`INSERT INTO game.profiles(auth_subject,provider,display_name)
         VALUES ('local:review','local','Dev explorador') ON CONFLICT (auth_subject) DO UPDATE SET auth_subject=EXCLUDED.auth_subject RETURNING id`);
-      await newVisitor(res, profile.id);
-      await db.query('DELETE FROM game.visitor_sessions WHERE id=$1', [visitorId]);
+      newVisitor(res, profile.id);
     },
-    async logout(res: Response, visitorId: string) {
-      await newVisitor(res);
-      await db.query('DELETE FROM game.visitor_sessions WHERE id=$1', [visitorId]);
+    async logout(res: Response) {
+      newVisitor(res);
     },
   };
 
-  async function findVisitor(req: Request) {
+  function findVisitor(req: Request): { id: string; local_profile_id: string | null } | undefined {
     const token = req.cookies?.[COOKIE];
-    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return undefined;
-    return (
-      await db.query<{ id: string; local_profile_id: string | null }>(
-        'SELECT id,local_profile_id FROM game.visitor_sessions WHERE token_hash=$1 AND expires_at > now()',
-        [hash(token)],
-      )
-    ).rows[0];
+    if (typeof token !== 'string') return undefined;
+    const [payload, signature, extra] = token.split('.');
+    if (!payload || !signature || extra || !/^[a-f0-9]{64}$/.test(signature)) return undefined;
+    const expected = Buffer.from(sign(payload), 'hex');
+    if (!timingSafeEqual(expected, Buffer.from(signature, 'hex'))) return undefined;
+    try {
+      const value = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+      if (!/^[a-f0-9]{32}$/.test(value.id) || typeof value.expires !== 'number' || value.expires <= Date.now()) return undefined;
+      if (value.local_profile_id !== null && (typeof value.local_profile_id !== 'string' || !/^[0-9a-f-]{36}$/.test(value.local_profile_id))) return undefined;
+      return { id: value.id, local_profile_id: value.local_profile_id };
+    } catch { return undefined; }
   }
 }

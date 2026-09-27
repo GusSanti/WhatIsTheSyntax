@@ -52,36 +52,29 @@ As tabelas ficam no schema privado `game`, separado dos dados de autenticação 
 
 | Tabela              | O que armazena                                                                                                                               | Relações principais                                               |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `profiles`          | Identificador, nome público editável, foto Google validada, provedor e vínculo com a identidade autenticada. Não armazena senha ou e-mail. | Recebe partidas e eventos de pontos.                              |
-| `languages`         | Catálogo canônico de linguagens, como Python, C# e JavaScript.                                                                               | Referenciada por aliases, trechos e respostas aceitas.            |
-| `language_aliases`  | Nomes normalizados e abreviações aceitas, como `js` e `csharp`.                                                                              | Muitos aliases pertencem a uma linguagem.                         |
-| `code_snippets`     | Texto do código, linguagem principal, chave editorial privada e informação de origem.                                                        | **Cada trecho aponta diretamente para uma linguagem.**            |
-| `challenges`        | Modo, dificuldade e enunciado. Em desafios de código, referencia um trecho. Em siglas/frameworks, guarda o enunciado textual.                | Referencia `code_snippets` quando aplicável.                      |
-| `challenge_answers` | Respostas textuais de siglas, linguagens aceitas em frameworks e alternativas legítimas em código.                                           | Aponta para um desafio e, quando aplicável, para uma linguagem.   |
+| `profiles`          | Identidade, nome público, avatar e total de pontos. Não armazena senha ou e-mail. | Recebe partidas de jogadores autenticados. |
+| `languages`         | Linguagens e sua dificuldade fixa: fácil, média ou difícil. | Referenciada por trechos e frameworks. |
+| `code_snippets`     | Código, linguagem principal, chave editorial e outras linguagens aceitas para o mesmo trecho. | Cada trecho aponta diretamente para uma linguagem. |
+| `frameworks`        | Nome, linguagem principal e outras linguagens aceitas. | Referencia `languages`. |
+| `acronyms`          | Sigla e sua definição. A API normaliza e compara respostas sem diferenciar maiúsculas e minúsculas. | Referenciada por desafios de sigla. |
+| `challenges`        | Tipo e vínculo exclusivo com um trecho, framework ou sigla. | Referencia o catálogo correspondente. |
 | `daily_challenges`  | Publicação de um desafio em uma data e posição: fácil, médio, difícil, sigla ou framework.                                                   | Liga o catálogo editorial ao calendário.                          |
-| `visitor_sessions`  | Hash do token de um visitante, validade e vínculo local de desenvolvimento.                                                                  | Identifica visitantes sem confiar em IDs enviados pelo navegador. |
-| `game_sessions`     | Partida: jogador/visitante, desafio publicado, elegibilidade para ranking, início, fim, tentativas, estado e pontos.                         | Pertence a uma publicação e, quando conectado, a um perfil.       |
-| `guesses`           | Texto digitado, forma normalizada privada, número da tentativa, resultado e identificador de envio.                                          | Pertence a uma partida.                                           |
-| `score_events`      | Histórico de pontos concedidos, data da edição, tempo e versão da regra aplicada.                                                            | Um evento por partida pontuada; associado ao perfil.              |
+| `game_sessions`     | Partida, estado, pontos e até três tentativas em `guesses` (`jsonb`), com texto, forma normalizada, resultado e identificador do envio. | Pertence a uma publicação e, quando conectado, a um perfil. |
 | `schema_migrations` | Migrações já aplicadas.                                                                                                                      | Controle técnico de versões do banco.                             |
 
 ```mermaid
 erDiagram
-    languages ||--o{ language_aliases : reconhece
     languages ||--o{ code_snippets : identifica
+    languages ||--o{ frameworks : suporta
     code_snippets o|--o{ challenges : apresenta
-    challenges ||--o{ challenge_answers : aceita
-    languages o|--o{ challenge_answers : corresponde
+    frameworks o|--o{ challenges : apresenta
+    acronyms o|--o{ challenges : apresenta
     challenges ||--o{ daily_challenges : publica
     daily_challenges ||--o{ game_sessions : recebe
     profiles o|--o{ game_sessions : joga
-    game_sessions ||--o{ guesses : registra
-    game_sessions ||--o| score_events : pontua
-    profiles ||--o{ score_events : acumula
-    profiles o|--o{ visitor_sessions : demonstra
 ```
 
-Separar trecho, desafio e publicação permite reutilizar a estrutura do catálogo sem vincular um código permanentemente a uma data. A linguagem principal vem de `code_snippets.language_id`; ela nunca é incluída na resposta pública. As alternativas de `challenge_answers` evitam rejeitar uma identificação válida em trechos compatíveis com mais de uma linguagem. No catálogo demonstrativo, o trecho em JavaScript também aceita TypeScript.
+Separar trecho, desafio e publicação permite reutilizar a estrutura do catálogo sem vincular um código permanentemente a uma data. A linguagem principal vem de `code_snippets.language_id`; ela nunca é incluída na resposta pública. `accepted_language_names` guarda alternativas legítimas específicas do trecho. No catálogo demonstrativo, o trecho em JavaScript também aceita TypeScript.
 
 O dropdown recebe a lista **completa** de nomes de `languages`, sempre sem relações com desafios ou filtros por gabarito. Não há um endpoint público para consultar aliases, respostas ou registros dos trechos.
 
@@ -91,7 +84,7 @@ O dropdown recebe a lista **completa** de nomes de `languages`, sempre sem rela�
 2. Valida o formato do envio: UUID da partida, UUID de idempotência e resposta entre 1 e 160 caracteres. Campos extras são rejeitados.
 3. Bloqueia a linha da partida durante a transação, impedindo duas alterações simultâneas no mesmo estado.
 4. Confere o dia, o estado da partida, a quantidade de tentativas e se aquele envio já foi processado.
-5. Normaliza a resposta, resolve aliases quando necessário e compara com as relações privadas no banco.
+5. Normaliza a resposta, resolve aliases definidos no servidor e compara com as relações privadas no banco.
 6. Registra o resultado e os pontos na mesma transação.
 
 **Linguagens:** normalização Unicode NFKC, letras minúsculas, remoção de espaços nas extremidades e redução de espaços repetidos. Os símbolos `#` e `+` são preservados: `C`, `C#` e `C++` não viram a mesma resposta. Abreviações precisam estar cadastradas. Nomes desconhecidos retornam uma orientação e não consomem tentativa.
@@ -120,7 +113,7 @@ O máximo teórico por edição é 1.000 pontos. O tempo considerado vem dos hor
 
 Só uma partida iniciada com autenticação, referente à edição atual, pode pontuar. Visitantes, treinos e partidas vencidas pela virada do dia recebem zero. Entrar depois de jogar como visitante não migra ou credita o resultado anterior: contas e visitantes possuem identidades separadas.
 
-Os pontos não são enviados pelo cliente e não são incrementados em uma coluna solta do cadastro. O perfil mostra a soma dos eventos de `score_events`. Assim, o cadastro tem sua pontuação acumulada sem haver dois totais que possam divergir.
+Os pontos não são enviados pelo cliente. A vitória atualiza `profiles.points` na mesma transação que registra `game_sessions.points`; partidas reenviadas não duplicam a atualização. O ranking mensal usa a data de `daily_challenges` e os pontos das partidas, enquanto o geral usa todas as partidas pontuadas.
 
 O ranking mensal filtra a data da edição no mês de Brasília; o geral usa todos os eventos. O histórico não é apagado na virada do mês. Os desempates são: mais acertos, primeiro evento de pontuação mais antigo e UUID do perfil para ordenação estável. A API retorna os 100 primeiros e a posição do próprio jogador mesmo quando ele estiver fora dessa lista.
 
@@ -156,7 +149,7 @@ O frontend usa o fluxo OAuth PKCE do Supabase. A API verifica o token com `auth.
 
 `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` formam a configuração pública necessária para iniciar o login. A API rejeita configurações com chave secreta ou `service_role` para impedir que uma credencial administrativa seja enviada ao navegador.
 
-Visitantes recebem um token aleatório em cookie `HttpOnly`, `SameSite=Lax` e `Secure` em produção; apenas o hash é salvo. Em desenvolvimento, o botão da conta local usa um perfil único de demonstração. Essa rota é bloqueada em produção mesmo que a variável local esteja ligada.
+Visitantes recebem um cookie assinado com HMAC, `HttpOnly`, `SameSite=Lax` e `Secure` em produção. Não há tabela de visitantes; as até três tentativas ficam no campo `game_sessions.guesses` para permitir retomada e impedir respostas repetidas. Configure `VISITOR_COOKIE_SECRET` com ao menos 32 caracteres em produção e mantenha o valor estável entre instâncias e reinícios. Em desenvolvimento, o botão da conta local usa um perfil único de demonstração. Essa rota é bloqueada em produção mesmo que a variável local esteja ligada.
 
 Respostas são limitadas em tamanho e formato. Há limitação de requisições por IP e verificação da origem dos envios. A origem pública precisa corresponder a `APP_ORIGIN`; `TRUST_PROXY_HOPS` só deve refletir os proxies efetivamente usados na hospedagem.
 
