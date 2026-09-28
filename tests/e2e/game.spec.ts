@@ -26,13 +26,32 @@ test('jornada de visitante, editor sem metadados, navegação e treino', async (
   await page.reload();
   await page.getByRole('button', { name: 'Retomar desafio', exact: true }).click();
   await expect(page.getByText('Boa! Você reconheceu as pistas.')).toBeVisible();
-  await page.getByRole('navigation').getByRole('link', { name: 'Siglas', exact: true }).click();
+  await page.getByRole('button', { name: 'Ir para o desafio médio' }).click();
+  await expect(page.getByRole('group', { name: 'Dificuldade' }).getByRole('button', { name: /Médio/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  await page.locator('#answer').fill('Ruby');
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ir para o desafio difícil' }).click();
+  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  for (const wrong of ['Python', 'Java']) {
+    await page.locator('#answer').fill(wrong);
+    await page.getByRole('button', { name: 'Enviar', exact: true }).click();
+    await expect(page.getByText('Dica da linguagem')).not.toBeVisible();
+  }
+  await page.locator('#answer').fill('C++');
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
+  await expect(page.getByText('Dica da linguagem')).toBeVisible();
+  await expect(page.getByText(/computação científica/)).toBeVisible();
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-hint.png`, fullPage: true });
+  await page.locator('#answer').fill('Julia');
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ir para siglas' }).click();
   await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'SaaS', exact: true })).toBeVisible();
   await page.locator('#answer').fill('SOFTWARE AS A SERVICE');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(page.getByText('Boa! Você reconheceu as pistas.')).toBeVisible();
-  await page.getByRole('navigation').getByRole('link', { name: 'Frameworks', exact: true }).click();
+  await page.getByRole('button', { name: 'Ir para frameworks' }).click();
   await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Django', exact: true })).toBeVisible();
   await page.getByRole('navigation').getByRole('link', { name: 'Arquivo', exact: true }).click();

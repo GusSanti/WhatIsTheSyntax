@@ -28,6 +28,8 @@ type Props = {
   onUpdate: () => void;
   onRules: () => void;
   onLogin: () => void;
+  nextChallenge?: DailyChallenge;
+  onNext?: () => void;
 };
 export function GameBoard({
   challenge,
@@ -37,6 +39,8 @@ export function GameBoard({
   onUpdate,
   onRules,
   onLogin,
+  nextChallenge,
+  onNext,
 }: Props) {
   const [game, setGame] = useState<Game | null>(null);
   const [answer, setAnswer] = useState('');
@@ -118,7 +122,7 @@ export function GameBoard({
         : 'Qual linguagem está por trás desse framework?';
   const startContent = (
     <>
-      <h3>{practice ? 'Um bom dia para praticar.' : 'Um código. Três tentativas.'}</h3>
+      <h3>{practice ? 'Um bom dia para praticar.' : 'Um código. Cinco tentativas.'}</h3>
       <p>
         {practice
           ? 'Revise seus conhecimentos, no seu ritmo.'
@@ -231,9 +235,9 @@ export function GameBoard({
         <div className="attempts-row">
           <div
             className="attempt-indicators"
-            aria-label={`${game?.guesses.length || 0} de 3 tentativas usadas`}
+            aria-label={`${game?.guesses.length || 0} de 5 tentativas usadas`}
           >
-            {[0, 1, 2].map((index) => (
+            {[0, 1, 2, 3, 4].map((index) => (
               <span
                 key={index}
                 className={
@@ -258,7 +262,7 @@ export function GameBoard({
             <span className="attempt-caption">
               {game
                 ? `${game.attemptsLeft} ${game.attemptsLeft === 1 ? 'tentativa restante' : 'tentativas restantes'}`
-                : '3 tentativas para descobrir'}
+                : '5 tentativas para descobrir'}
             </span>
           </div>
           <span className="points-caption">
@@ -293,6 +297,12 @@ export function GameBoard({
             ))}
           </ol>
         )}
+        {game?.hint && (
+          <div className="language-hint" role="note">
+            <span className="language-hint-title"><CircleHelp size={16} /> Dica da linguagem</span>
+            <p>{game.hint}</p>
+          </div>
+        )}
         {terminal && (
           <div className={`result-panel ${game.status === 'won' ? 'won' : ''}`} role="status">
             <div>
@@ -314,6 +324,14 @@ export function GameBoard({
               </p>
             </div>
             <div className="result-actions">
+              {game.status === 'won' && nextChallenge && onNext && (
+                <button className="button primary small" onClick={onNext}>
+                  Ir para {nextChallenge.mode === 'code'
+                    ? `o desafio ${difficultyNames[nextChallenge.difficulty].toLowerCase()}`
+                    : nextChallenge.mode === 'acronym' ? 'siglas' : 'frameworks'}
+                  <ArrowRight size={15} />
+                </button>
+              )}
               {practice && (
                 <button
                   className="button secondary small"

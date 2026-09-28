@@ -1,6 +1,6 @@
 # What Is The Syntax?
 
-**Um código. Três tentativas. Uma nova descoberta todos os dias.**
+**Um código. Cinco tentativas. Uma nova descoberta todos os dias.**
 
 What Is The Syntax? é um jogo de navegador sobre linguagens de programação e conceitos de tecnologia. Observe o código, reconheça as pistas e descubra a linguagem por trás dele.
 
@@ -34,7 +34,8 @@ Cada jogador conectado pode escolher seu nome público no cabeçalho ou no ranki
 
 - Layout adaptado a computadores e celulares.
 - Editor sem extensão de arquivo, identificação de linguagem ou metadados de gabarito.
-- Três tentativas por partida, com histórico e feedback individual.
+- Cinco tentativas por partida, com histórico e feedback individual. Após três erros em código ou frameworks, uma dica da linguagem é exibida.
+- Botão para seguir ao próximo desafio da edição após cada acerto.
 - Retomada de partidas preservando o relógio e as tentativas.
 - Compartilhamento de resultados sem a resposta.
 - Arquivo com as últimas 30 edições publicadas.

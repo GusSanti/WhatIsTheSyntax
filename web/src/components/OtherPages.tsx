@@ -176,7 +176,7 @@ export function RankingPage({
           sobe no ranking<span>.</span>
         </h1>
         <p>
-          Três tentativas, muitas possibilidades. Acompanhe quem
+          Cinco tentativas, muitas possibilidades. Acompanhe quem
           <br className="desktop-break" /> está reconhecendo as pistas e conquistando o topo.
         </p>
       </div>

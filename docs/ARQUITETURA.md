@@ -59,7 +59,8 @@ As tabelas ficam no schema privado `game`, separado dos dados de autenticação 
 | `acronyms`          | Sigla e sua definição. A API normaliza e compara respostas sem diferenciar maiúsculas e minúsculas. | Referenciada por desafios de sigla. |
 | `challenges`        | Tipo e vínculo exclusivo com um trecho, framework ou sigla. | Referencia o catálogo correspondente. |
 | `daily_challenges`  | Publicação de um desafio em uma data e posição: fácil, médio, difícil, sigla ou framework.                                                   | Liga o catálogo editorial ao calendário.                          |
-| `game_sessions`     | Partida, estado, pontos e até três tentativas em `guesses` (`jsonb`), com texto, forma normalizada, resultado e identificador do envio. | Pertence a uma publicação e, quando conectado, a um perfil. |
+| `game_sessions`     | Partida, estado, pontos e até cinco tentativas em `guesses` (`jsonb`), com texto, forma normalizada, resultado e identificador do envio. | Pertence a uma publicação e, quando conectado, a um perfil. |
+| `language_hints`    | Descrição curta de cada linguagem, ligada por `language_id`. A API só a envia após três erros na partida. | Pertence a uma linguagem. |
 | `schema_migrations` | Migrações já aplicadas.                                                                                                                      | Controle técnico de versões do banco.                             |
 
 ```mermaid
@@ -107,7 +108,7 @@ A regra v1 é:
 
 **Pontos = arredondar((base + bônus de tempo) × fator da tentativa).**
 
-O bônus começa em 25% da base e cai linearmente até zero aos 120 segundos. O fator vale 1 na primeira tentativa, 0,7 na segunda e 0,4 na terceira. Depois de dois minutos ainda é possível acertar e receber a base ajustada pelas tentativas. Exemplo: um desafio médio acertado em 60 segundos na segunda tentativa rende **158 pontos**.
+O bônus começa em 25% da base e cai linearmente até zero aos 120 segundos. O fator vale 1 na primeira tentativa, 0,7 na segunda, 0,4 na terceira, 0,2 na quarta e 0,1 na quinta. Depois de dois minutos ainda é possível acertar e receber a base ajustada pelas tentativas. Exemplo: um desafio médio acertado em 60 segundos na segunda tentativa rende **158 pontos**.
 
 O máximo teórico por edição é 1.000 pontos. O tempo considerado vem dos horários registrados no servidor; o cronômetro da tela apenas apresenta essa informação.
 
@@ -141,6 +142,8 @@ Com `DATABASE_URL`, o adaptador utiliza `pg.Pool`, consultas parametrizadas e tr
 
 O ambiente local aplica a migração e carrega os exemplos automaticamente. No banco remoto, a aplicação exige migrações já aplicadas e não insere exemplos na inicialização. Em produção, a ausência de conexão PostgreSQL ou configuração de autenticação impede o início do servidor.
 
+Para atualizar um Supabase já na versão 004 pelo SQL Editor, execute `database/supabase_manual_five_attempts_and_hints.sql`. Novas linguagens publicadas precisam de uma linha em `game.language_hints` ligada ao respectivo `language_id`; o catálogo demonstrativo preenche essas linhas automaticamente.
+
 As publicações remotas são orientadas a dados: cada dia precisa de cinco registros em `daily_challenges`. O backend consulta a data atual, portanto não depende de um job executado exatamente à meia-noite. Quando não existe publicação, a interface mostra uma edição indisponível. Em desenvolvimento, os exemplos do novo dia são preparados no próximo carregamento.
 
 ## Autenticação e ambiente
@@ -149,7 +152,7 @@ O frontend usa o fluxo OAuth PKCE do Supabase. A API verifica o token com `auth.
 
 `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` formam a configuração pública necessária para iniciar o login. A API rejeita configurações com chave secreta ou `service_role` para impedir que uma credencial administrativa seja enviada ao navegador.
 
-Visitantes recebem um cookie assinado com HMAC, `HttpOnly`, `SameSite=Lax` e `Secure` em produção. Não há tabela de visitantes; as até três tentativas ficam no campo `game_sessions.guesses` para permitir retomada e impedir respostas repetidas. Configure `VISITOR_COOKIE_SECRET` com ao menos 32 caracteres em produção e mantenha o valor estável entre instâncias e reinícios. Em desenvolvimento, o botão da conta local usa um perfil único de demonstração. Essa rota é bloqueada em produção mesmo que a variável local esteja ligada.
+Visitantes recebem um cookie assinado com HMAC, `HttpOnly`, `SameSite=Lax` e `Secure` em produção. Não há tabela de visitantes; as até cinco tentativas ficam no campo `game_sessions.guesses` para permitir retomada e impedir respostas repetidas. Configure `VISITOR_COOKIE_SECRET` com ao menos 32 caracteres em produção e mantenha o valor estável entre instâncias e reinícios. Em desenvolvimento, o botão da conta local usa um perfil único de demonstração. Essa rota é bloqueada em produção mesmo que a variável local esteja ligada.
 
 Respostas são limitadas em tamanho e formato. Há limitação de requisições por IP e verificação da origem dos envios. A origem pública precisa corresponder a `APP_ORIGIN`; `TRUST_PROXY_HOPS` só deve refletir os proxies efetivamente usados na hospedagem.
 

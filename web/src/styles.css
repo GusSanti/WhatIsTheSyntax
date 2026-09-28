@@ -823,6 +823,26 @@ button {
   font-size: 9px;
   margin-left: 4px;
 }
+.language-hint {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid #d4dec5;
+  border-radius: 8px;
+  background: #f1f5e9;
+  color: #4c6244;
+}
+.language-hint-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.language-hint p {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .points-caption {
   font: 9px var(--mono);
   color: #959b8c;

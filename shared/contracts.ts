@@ -49,6 +49,7 @@ export type Game = {
   points: number;
   maxPoints: number;
   attemptsLeft: number;
+  hint?: string;
   guesses: Guess[];
 };
 export type RankingEntry = {

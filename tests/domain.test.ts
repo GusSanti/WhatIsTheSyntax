@@ -24,8 +24,10 @@ test('pontuação respeita bônus limitado, tempo e tentativas', () => {
   assert.equal(calculatePoints('easy', 1, 0), 125);
   assert.equal(calculatePoints('medium', 2, 60_000), 158);
   assert.equal(calculatePoints('hard', 3, 120_000), 120);
+  assert.equal(calculatePoints('easy', 4, 120_000), 20);
+  assert.equal(calculatePoints('easy', 5, 120_000), 10);
   assert.equal(calculatePoints('easy', 1, 86_400_000), 100);
-  assert.throws(() => calculatePoints('easy', 4, 0));
+  assert.throws(() => calculatePoints('easy', 6, 0));
   assert.throws(() => calculatePoints('easy', 1, -1));
 });
 test('virada de dia e mês usa Brasília, independentemente do relógio local', () => {

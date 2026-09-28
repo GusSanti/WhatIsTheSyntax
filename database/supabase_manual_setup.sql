@@ -22,6 +22,10 @@ CREATE TABLE game.languages (
   name text NOT NULL UNIQUE,
   difficulty text NOT NULL CHECK (difficulty IN ('easy','medium','hard'))
 );
+CREATE TABLE game.language_hints (
+  language_id uuid PRIMARY KEY REFERENCES game.languages(id) ON DELETE CASCADE,
+  description text NOT NULL CHECK (length(trim(description)) > 0)
+);
 CREATE TABLE game.code_snippets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   editorial_key text NOT NULL UNIQUE,
@@ -69,7 +73,7 @@ CREATE TABLE game.game_sessions (
   ranked boolean NOT NULL,
   practice boolean NOT NULL DEFAULT false,
   status text NOT NULL DEFAULT 'playing' CHECK (status IN ('playing','won','lost','expired')),
-  attempts integer NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 3),
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 5),
   guesses jsonb NOT NULL DEFAULT '[]'::jsonb,
   points integer NOT NULL DEFAULT 0 CHECK (points >= 0),
   scoring_version integer NOT NULL DEFAULT 1,
@@ -96,5 +100,5 @@ DO $$ BEGIN
 END $$;
 INSERT INTO game.schema_migrations(name) VALUES
   ('001_initial.sql'),('002_profile_avatar.sql'),('003_simplify_catalog.sql'),
-  ('004_guesses_in_sessions.sql');
+  ('004_guesses_in_sessions.sql'),('005_five_attempts_and_hints.sql');
 COMMIT;

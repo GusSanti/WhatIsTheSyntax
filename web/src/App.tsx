@@ -217,6 +217,9 @@ export default function App() {
           ? challenge.mode === 'code' && challenge.difficulty === difficulty
           : challenge.mode === page,
       );
+  const nextChallenge = !isPractice && selected
+    ? boot?.challenges[boot.challenges.findIndex((challenge) => challenge.id === selected.id) + 1]
+    : undefined;
   const completed =
     boot?.challenges.filter(
       (challenge) => challenge.status === 'won' || challenge.status === 'lost',
@@ -377,7 +380,7 @@ export default function App() {
                       ) : page === 'daily' ? (
                         <>
                           Observe o código, reconheça as pistas e descubra a linguagem.
-                          <br className="desktop-break" /> Três tentativas. Uma nova descoberta
+                          <br className="desktop-break" /> Cinco tentativas. Uma nova descoberta
                           todos os dias.
                         </>
                       ) : page === 'acronym' ? (
@@ -461,6 +464,12 @@ export default function App() {
                         onUpdate={() => void refresh()}
                         onRules={() => setModal('rules')}
                         onLogin={openLogin}
+                        nextChallenge={nextChallenge}
+                        onNext={() => {
+                          if (!nextChallenge) return;
+                          if (nextChallenge.mode === 'code') setDifficulty(nextChallenge.difficulty);
+                          navigate(nextChallenge.mode === 'code' ? 'daily' : nextChallenge.mode);
+                        }}
                       />
                     ) : (
                       <div className="empty-state">
@@ -716,10 +725,11 @@ export default function App() {
             <li>
               <span>2</span>
               <div>
-                <strong>Use suas três tentativas</strong>
+                <strong>Use suas cinco tentativas</strong>
                 <p>
                   Selecione ou escreva a linguagem. Em siglas, escreva o significado em inglês.
-                  Maiúsculas e espaços extras não atrapalham.
+                  Maiúsculas e espaços extras não atrapalham. Após três erros em desafios de
+                  linguagem, você recebe uma dica.
                 </p>
               </div>
             </li>
@@ -743,6 +753,12 @@ export default function App() {
             </span>
             <span>
               3ª tentativa <strong>40%</strong>
+            </span>
+            <span>
+              4ª tentativa <strong>20%</strong>
+            </span>
+            <span>
+              5ª tentativa <strong>10%</strong>
             </span>
           </div>
           <p className="modal-footnote">

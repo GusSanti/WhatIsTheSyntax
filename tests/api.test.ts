@@ -55,6 +55,8 @@ test('contratos públicos não incluem gabarito, relação, aliases ou chaves ed
   const game = await start(agent);
   assert.ok(game.content.includes('const scores'));
   assert.equal(game.ranked, false);
+  assert.equal(game.attemptsLeft, 5);
+  assert.equal(game.hint, undefined);
   assert.deepEqual(
     Object.keys(game).sort(),
     [
@@ -93,12 +95,13 @@ test('visitante joga de verdade, sem pontos; refresh preserva tentativas e horá
   const invalid = await send(agent, game, 'Não existe').expect(422);
   assert.match(invalid.body.error, /linguagem/);
   const wrong = (await send(agent, game, 'Ruby').expect(200)).body as Game;
-  assert.equal(wrong.attemptsLeft, 2);
+  assert.equal(wrong.attemptsLeft, 4);
+  assert.equal(wrong.hint, undefined);
   await send(agent, game, 'RB').expect(409);
   const resumed = await start(agent);
   assert.equal(resumed.id, game.id);
   assert.equal(resumed.startedAt, game.startedAt);
-  assert.equal(resumed.attemptsLeft, 2);
+  assert.equal(resumed.attemptsLeft, 4);
   const won = (await send(agent, game, ' JAVASCRIPT ').expect(200)).body as Game;
   assert.equal(won.status, 'won');
   assert.equal(won.points, 0);
@@ -106,29 +109,38 @@ test('visitante joga de verdade, sem pontos; refresh preserva tentativas e horá
   assert.equal((await start(agent)).id, game.id);
 });
 
-test('três erros encerram a partida sem revelar resposta; sessões são privadas', async () => {
+test('dica surge após três erros e a partida termina no quinto; sessões são privadas', async () => {
   const agent = request.agent(app);
   const other = request.agent(app);
   const game = await start(agent, 'code', 'hard');
   await send(other, game, 'Julia').expect(404);
-  for (const answer of ['Python', 'Java', 'C++']) await send(agent, game, answer).expect(200);
+  for (const answer of ['Python', 'Java']) {
+    const result = (await send(agent, game, answer).expect(200)).body as Game;
+    assert.equal(result.hint, undefined);
+  }
+  const hinted = (await send(agent, game, 'C++').expect(200)).body as Game;
+  assert.equal(hinted.status, 'playing');
+  assert.equal(hinted.attemptsLeft, 2);
+  assert.match(hinted.hint || '', /computação científica/i);
+  for (const answer of ['Ruby', 'Go']) await send(agent, game, answer).expect(200);
   const result = await start(agent, 'code', 'hard');
   assert.equal(result.status, 'lost');
   assert.equal(result.attemptsLeft, 0);
+  assert.equal(result.hint, hinted.hint);
   assert.doesNotMatch(JSON.stringify(result), /julia|language_id|correctAnswer/i);
   await send(agent, game, 'Julia').expect(409);
 });
 
-test('envios diferentes concorrentes não ultrapassam três tentativas', async () => {
+test('envios diferentes concorrentes não ultrapassam cinco tentativas', async () => {
   const agent = request.agent(app);
   const game = await start(agent);
   const responses = await Promise.all(
-    ['Ruby', 'Python', 'C++', 'Java'].map((answer) => send(agent, game, answer)),
+    ['Ruby', 'Python', 'C++', 'Java', 'C#', 'Go'].map((answer) => send(agent, game, answer)),
   );
-  assert.deepEqual(responses.map((result) => result.status).sort(), [200, 200, 200, 409]);
+  assert.deepEqual(responses.map((result) => result.status).sort(), [200, 200, 200, 200, 200, 409]);
   const result = await start(agent);
   assert.equal(result.status, 'lost');
-  assert.equal(result.guesses.length, 3);
+  assert.equal(result.guesses.length, 5);
   assert.equal(result.attemptsLeft, 0);
 });
 
@@ -196,6 +208,7 @@ test('sigla aceita formatação, exige termo completo; framework usa aliases', a
   assert.equal(acronym.content, 'SaaS');
   const wrong = (await send(agent, acronym, 'Software Service').expect(200)).body;
   assert.equal(wrong.status, 'playing');
+  assert.equal(wrong.hint, undefined);
   const won = (await send(agent, acronym, ' SOFTWARE-as   a Service! ').expect(200)).body;
   assert.equal(won.status, 'won');
   const framework = await start(agent, 'framework', 'standard');
@@ -221,7 +234,7 @@ test('treino autenticado pode ser refeito e nunca altera a pontuação', async (
     await agent.post('/api/sessions').send({ dailyId: daily.id, restart: true }).expect(200)
   ).body;
   assert.notEqual(replay.id, game.id);
-  assert.equal(replay.attemptsLeft, 3);
+  assert.equal(replay.attemptsLeft, 5);
   const afterBoot: Bootstrap = (await agent.get('/api/bootstrap')).body;
   assert.equal(afterBoot.profile?.totalPoints, beforeBoot.profile?.totalPoints);
 });

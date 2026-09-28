@@ -28,6 +28,7 @@ type DailyRow = {
   difficulty: Difficulty;
   prompt: string | null;
   source_code: string | null;
+  language_hint: string | null;
 };
 type SessionRow = {
   id: string;
@@ -143,12 +144,14 @@ export class GameService {
         `SELECT d.id, d.day::text, d.challenge_id, c.mode,
           COALESCE(l.difficulty,'standard') AS difficulty,
           COALESCE(f.name,a.acronym) AS prompt,
-          s.source_code, to_jsonb(previous) AS previous_session
+          s.source_code, h.description AS language_hint,
+          to_jsonb(previous) AS previous_session
         FROM game.daily_challenges d
         JOIN game.challenges c ON c.id=d.challenge_id
         LEFT JOIN game.code_snippets s ON s.id=c.snippet_id
         LEFT JOIN game.languages l ON l.id=s.language_id
         LEFT JOIN game.frameworks f ON f.id=c.framework_id
+        LEFT JOIN game.language_hints h ON h.language_id=COALESCE(s.language_id,f.language_id)
         LEFT JOIN game.acronyms a ON a.id=c.acronym_id
         LEFT JOIN LATERAL (
           SELECT * FROM game.game_sessions g WHERE g.actor_key=$2 AND g.daily_id=d.id
@@ -210,6 +213,7 @@ export class GameService {
         `SELECT g.*, d.id AS resolved_daily_id, d.day::text, d.challenge_id,
           c.mode, COALESCE(primary_language.difficulty,'standard') AS difficulty,
           COALESCE(f.name,a.acronym) AS prompt, s.source_code,
+          h.description AS language_hint,
           candidate.id AS candidate_language_id, a.definition AS acronym_definition,
           CASE WHEN c.mode='framework' THEN
             f.language_id=candidate.id OR candidate.name=ANY(f.accepted_language_names)
@@ -221,6 +225,7 @@ export class GameService {
         LEFT JOIN game.code_snippets s ON s.id=c.snippet_id
         LEFT JOIN game.languages primary_language ON primary_language.id=s.language_id
         LEFT JOIN game.frameworks f ON f.id=c.framework_id
+        LEFT JOIN game.language_hints h ON h.language_id=COALESCE(s.language_id,f.language_id)
         LEFT JOIN game.acronyms a ON a.id=c.acronym_id
         LEFT JOIN game.languages candidate ON lower(candidate.name)=$3
         WHERE g.id=$1 AND g.actor_key=$2 FOR UPDATE OF g`,
@@ -265,7 +270,7 @@ export class GameService {
       const elapsed = Math.max(0, now.getTime() - new Date(session.started_at).getTime());
       const points =
         correct && session.ranked ? calculatePoints(daily.difficulty, attempt, elapsed) : 0;
-      const status: GameStatus = correct ? 'won' : attempt === 3 ? 'lost' : 'playing';
+      const status: GameStatus = correct ? 'won' : attempt === 5 ? 'lost' : 'playing';
       const savedGuess: StoredGuess = { requestId, text: text.trim(), normalized, correct };
       const {
         rows: [updated],
@@ -354,7 +359,10 @@ export class GameService {
       serverTime: this.now().toISOString(),
       points: session.points,
       maxPoints: BASE_POINTS[daily.difficulty] * 1.25,
-      attemptsLeft: 3 - session.attempts,
+      attemptsLeft: 5 - session.attempts,
+      ...(daily.mode !== 'acronym' && session.guesses.filter((guess) => !guess.correct).length >= 3 && daily.language_hint
+        ? { hint: daily.language_hint }
+        : {}),
       guesses: session.guesses.map((guess, index) => ({
         number: index + 1,
         text: guess.text,
