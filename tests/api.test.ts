@@ -299,6 +299,27 @@ test('produção desativa login local mesmo com flag ligada', async () => {
   assert.equal(boot.config.localAuth, false);
 });
 
+test('na Vercel, a origem HTTPS do mesmo host pode enviar respostas', async () => {
+  const vercelApp = createApp(db, {
+    ...options,
+    production: true,
+    localAuth: false,
+    sameOriginOnVercel: true,
+  });
+  await request(vercelApp)
+    .post('/api/auth/logout')
+    .set('Host', 'jogo.vercel.app')
+    .set('Origin', 'https://jogo.vercel.app')
+    .send({})
+    .expect(200);
+  await request(vercelApp)
+    .post('/api/auth/logout')
+    .set('Host', 'jogo.vercel.app')
+    .set('Origin', 'https://outro.example')
+    .send({})
+    .expect(403);
+});
+
 test('uma chave privilegiada do Supabase nunca pode virar configuração pública', () => {
   assert.throws(
     () =>

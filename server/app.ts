@@ -12,6 +12,7 @@ import { ApiError, gameDate, nextReset } from './domain.js';
 
 type Options = AuthOptions & {
   origin: string;
+  sameOriginOnVercel?: boolean;
   trustProxyHops?: number;
   serveStatic?: boolean;
   clock?: () => Date;
@@ -41,7 +42,12 @@ export function createApp(db: Database, options: Options) {
               scriptSrc: ["'self'"],
               styleSrc: ["'self'", "'unsafe-inline'"],
               fontSrc: ["'self'"],
-              imgSrc: ["'self'", 'data:', 'https://googleusercontent.com', 'https://*.googleusercontent.com'],
+              imgSrc: [
+                "'self'",
+                'data:',
+                'https://googleusercontent.com',
+                'https://*.googleusercontent.com',
+              ],
               connectSrc: ["'self'", ...(options.supabaseUrl ? [options.supabaseUrl] : [])],
               objectSrc: ["'none'"],
               baseUri: ["'self'"],
@@ -101,8 +107,14 @@ export function createApp(db: Database, options: Options) {
   }
   app.use('/api', (req, _res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const vercelOrigin =
+        options.sameOriginOnVercel && req.headers.host ? `https://${req.headers.host}` : null;
       const allowed = options.production
-        ? [options.origin]
+        ? options.sameOriginOnVercel
+          ? vercelOrigin
+            ? [vercelOrigin]
+            : []
+          : [options.origin]
         : [options.origin, 'http://127.0.0.1:5173', 'http://localhost:5173'];
       if (req.headers.origin && !allowed.includes(req.headers.origin))
         throw new ApiError(403, 'Origem não permitida.');

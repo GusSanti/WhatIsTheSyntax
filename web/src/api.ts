@@ -42,7 +42,10 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     );
   }
   if (!response.ok)
-    throw new RequestError(data.error || 'Não foi possível concluir a ação.', response.status);
+    throw new RequestError(
+      `${data.error || 'Não foi possível concluir a ação.'}${data.code ? ` (${data.code})` : ''}`,
+      response.status,
+    );
   return data;
 }
 export function errorMessage(error: unknown) {
