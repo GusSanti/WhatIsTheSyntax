@@ -21,7 +21,13 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import type { ArchiveDay, Bootstrap, DailyChallenge, Difficulty, Profile } from '../../shared/contracts';
+import type {
+  ArchiveDay,
+  Bootstrap,
+  DailyChallenge,
+  Difficulty,
+  Profile,
+} from '../../shared/contracts';
 import { api, errorMessage, getAuth, RequestError, setAccessToken } from './api';
 import { difficultyNames, formatDate, formatNumber } from './lib';
 import { Modal } from './components/Modal';
@@ -217,9 +223,10 @@ export default function App() {
           ? challenge.mode === 'code' && challenge.difficulty === difficulty
           : challenge.mode === page,
       );
-  const nextChallenge = !isPractice && selected
-    ? boot?.challenges[boot.challenges.findIndex((challenge) => challenge.id === selected.id) + 1]
-    : undefined;
+  const nextChallenge =
+    !isPractice && selected
+      ? boot?.challenges[boot.challenges.findIndex((challenge) => challenge.id === selected.id) + 1]
+      : undefined;
   const completed =
     boot?.challenges.filter(
       (challenge) => challenge.status === 'won' || challenge.status === 'lost',
@@ -257,7 +264,7 @@ export default function App() {
               </strong>
             </span>
           </a>
-          <div className="header-center">UM POUCO DE CÓDIGO. TODOS OS DIAS.</div>
+          <div className="header-center">DESCUBRA A LINGUAGEM PELO CÓDIGO.</div>
           <div className="header-actions">
             <button
               className="icon-button help-button"
@@ -268,7 +275,11 @@ export default function App() {
             </button>
             {boot?.profile ? (
               <>
-                <button className="account-label account-button" onClick={openProfile} aria-label="Editar nome público">
+                <button
+                  className="account-label account-button"
+                  onClick={openProfile}
+                  aria-label="Editar nome público"
+                >
                   <Avatar name={boot.profile.name} url={boot.profile.avatarUrl} />
                   <span>
                     {boot.profile.name}
@@ -433,7 +444,7 @@ export default function App() {
                                 {challenge?.status === 'won' ? (
                                   <Check size={14} />
                                 ) : (
-                                  `${level === 'easy' ? '125' : level === 'medium' ? '250' : '375'} pts`
+                                  `${challenge?.maxPoints ?? (level === 'easy' ? 100 : level === 'medium' ? 200 : 300)} pts`
                                 )}
                               </small>
                             </button>
@@ -450,7 +461,7 @@ export default function App() {
                         <span>
                           {isPractice
                             ? 'Refaça quantas vezes quiser'
-                            : 'Um desafio por dia · até 125 pontos'}
+                            : 'Um desafio por dia · até 100 pontos'}
                         </span>
                       </div>
                     )}
@@ -467,7 +478,8 @@ export default function App() {
                         nextChallenge={nextChallenge}
                         onNext={() => {
                           if (!nextChallenge) return;
-                          if (nextChallenge.mode === 'code') setDifficulty(nextChallenge.difficulty);
+                          if (nextChallenge.mode === 'code')
+                            setDifficulty(nextChallenge.difficulty);
                           navigate(nextChallenge.mode === 'code' ? 'daily' : nextChallenge.mode);
                         }}
                       />
@@ -629,7 +641,6 @@ export default function App() {
           <span className="footer-brand">
             <Code2 size={20} /> what is the syntax?
           </span>
-          <span>Feito para quem nunca para de aprender.</span>
         </div>
         <span>
           {boot?.config.storage === 'local'
@@ -640,7 +651,7 @@ export default function App() {
       {modal === 'login' && (
         <Modal title="Seu conhecimento merece pontos." onClose={() => setModal(null)}>
           <p className="modal-description">
-            Entre antes de começar um desafio para salvar seus resultados e participar do ranking.
+            Entre na sua conta para salvar resultados e participar do ranking.
           </p>
           <button
             className="button google-button"
@@ -699,7 +710,11 @@ export default function App() {
               disabled={profileBusy}
             />
             <p>De 3 a 24 caracteres. Letras, números, espaços, ponto, hífen ou sublinhado.</p>
-            {profileError && <div className="feedback error" role="alert">{profileError}</div>}
+            {profileError && (
+              <div className="feedback error" role="alert">
+                {profileError}
+              </div>
+            )}
             <button className="button primary full-width" type="submit" disabled={profileBusy}>
               {profileBusy ? <LoaderCircle size={17} className="spin" /> : 'Salvar nome'}
             </button>
@@ -717,8 +732,8 @@ export default function App() {
               <div>
                 <strong>Escolha seu desafio</strong>
                 <p>
-                  Entre na sua conta antes de começar se quiser pontuar. O relógio começa quando a
-                  pergunta é revelada e continua ao sair da aba.
+                  Entre na sua conta se quiser pontuar. A pergunta aparece assim que você entra no
+                  modo.
                 </p>
               </div>
             </li>
@@ -739,7 +754,7 @@ export default function App() {
                 <strong>Cada acerto conta</strong>
                 <p>
                   Base de 100 pontos no fácil, 200 no médio e 300 no difícil. Siglas e frameworks
-                  têm base de 100. O bônus de rapidez cai de 25% a zero nos primeiros dois minutos.
+                  têm base de 100. A pontuação depende apenas da tentativa em que você acertar.
                 </p>
               </div>
             </li>
@@ -762,9 +777,8 @@ export default function App() {
             </span>
           </div>
           <p className="modal-footnote">
-            A porcentagem é aplicada à base somada ao bônus, com arredondamento ao inteiro mais
-            próximo. Treino e partidas sem conta não geram pontos. A edição muda à meia-noite no
-            horário de Brasília.
+            A porcentagem é aplicada à base, com arredondamento ao inteiro mais próximo. Treino e
+            partidas sem conta não geram pontos. A edição muda à meia-noite no horário de Brasília.
           </p>
           <button className="button primary full-width" onClick={() => setModal(null)}>
             Vamos descobrir <ArrowRight size={16} />

@@ -129,7 +129,7 @@ export class GameService {
       date: row.day,
       mode: row.mode,
       difficulty: row.difficulty,
-      maxPoints: BASE_POINTS[row.difficulty] * 1.25,
+      maxPoints: BASE_POINTS[row.difficulty],
       status: row.status,
       points: row.points || 0,
     }));
@@ -178,7 +178,7 @@ export class GameService {
         rows: [created],
       } = await tx.query<SessionRow>(
         `INSERT INTO game.game_sessions
-        (daily_id,actor_key,profile_id,ranked,practice,started_at) VALUES ($1,$2,$3,$4,$5,$6)
+        (daily_id,actor_key,profile_id,ranked,practice,started_at,scoring_version) VALUES ($1,$2,$3,$4,$5,$6,2)
         ON CONFLICT DO NOTHING RETURNING *`,
         [
           dailyId,
@@ -254,7 +254,8 @@ export class GameService {
       if (daily.mode === 'acronym') {
         normalized = normalizeAcronym(text);
         if (!normalized) throw new ApiError(422, 'Escreva o significado da sigla.');
-        correct = normalized.toUpperCase() === normalizeAcronym(row.acronym_definition || '').toUpperCase();
+        correct =
+          normalized.toUpperCase() === normalizeAcronym(row.acronym_definition || '').toUpperCase();
       } else {
         if (!row.candidate_language_id)
           throw new ApiError(422, 'Escolha uma linguagem da lista ou use um nome reconhecido.');
@@ -267,23 +268,28 @@ export class GameService {
           'Você já tentou essa resposta. Escolha outra sem perder uma tentativa.',
         );
       const attempt = session.attempts + 1;
-      const elapsed = Math.max(0, now.getTime() - new Date(session.started_at).getTime());
-      const points =
-        correct && session.ranked ? calculatePoints(daily.difficulty, attempt, elapsed) : 0;
+      const points = correct && session.ranked ? calculatePoints(daily.difficulty, attempt) : 0;
       const status: GameStatus = correct ? 'won' : attempt === 5 ? 'lost' : 'playing';
       const savedGuess: StoredGuess = { requestId, text: text.trim(), normalized, correct };
       const {
         rows: [updated],
       } = await tx.query<SessionRow>(
-        `UPDATE game.game_sessions SET attempts=$2, status=$3, points=$4,
+        `UPDATE game.game_sessions SET attempts=$2, status=$3, points=$4, scoring_version=2,
           finished_at=$5, guesses=guesses || $6::jsonb
         WHERE id=$1 RETURNING *`,
-        [sessionId, attempt, status, points, status === 'playing' ? null : now,
-          JSON.stringify([savedGuess])],
+        [
+          sessionId,
+          attempt,
+          status,
+          points,
+          status === 'playing' ? null : now,
+          JSON.stringify([savedGuess]),
+        ],
       );
       if (points > 0)
         await tx.query('UPDATE game.profiles SET points=points+$2 WHERE id=$1', [
-          principal.profileId, points,
+          principal.profileId,
+          points,
         ]);
       return this.formatGame(updated, daily);
     });
@@ -358,9 +364,11 @@ export class GameService {
       finishedAt: session.finished_at ? new Date(session.finished_at).toISOString() : null,
       serverTime: this.now().toISOString(),
       points: session.points,
-      maxPoints: BASE_POINTS[daily.difficulty] * 1.25,
+      maxPoints: BASE_POINTS[daily.difficulty],
       attemptsLeft: 5 - session.attempts,
-      ...(daily.mode !== 'acronym' && session.guesses.filter((guess) => !guess.correct).length >= 3 && daily.language_hint
+      ...(daily.mode !== 'acronym' &&
+      session.guesses.filter((guess) => !guess.correct).length >= 3 &&
+      daily.language_hint
         ? { hint: daily.language_hint }
         : {}),
       guesses: session.guesses.map((guess, index) => ({

@@ -291,7 +291,9 @@ export function RankingPage({
                   {ranking?.own ? `#${ranking.own.position}` : '—'}
                 </span>
                 <h3>{profile.name}</h3>
-                <button className="text-link" onClick={onEditProfile}>Editar nome público</button>
+                <button className="text-link" onClick={onEditProfile}>
+                  Editar nome público
+                </button>
                 <p>
                   {ranking?.own
                     ? `${formatNumber(ranking.own.points)} pontos · ${ranking.own.wins} acertos`
@@ -328,8 +330,8 @@ export function RankingPage({
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Ganhe um bônus</strong>
-                  <p>A velocidade dá uma ajuda extra.</p>
+                  <strong>Jogue no seu ritmo</strong>
+                  <p>O tempo não altera a pontuação.</p>
                 </div>
               </li>
             </ol>

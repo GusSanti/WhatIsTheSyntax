@@ -3,20 +3,18 @@ import {
   ArrowRight,
   Check,
   CircleHelp,
-  Clock3,
   RotateCcw,
   Share2,
   Trophy,
   X,
   LoaderCircle,
-  Play,
   LockKeyhole,
   Braces,
   Blocks,
 } from 'lucide-react';
 import type { DailyChallenge, Game } from '../../../shared/contracts';
 import { api, errorMessage, RequestError } from '../api';
-import { difficultyNames, formatDuration, modeNames } from '../lib';
+import { difficultyNames, modeNames } from '../lib';
 import { CodeEditor } from './CodeEditor';
 import { LanguagePicker } from './LanguagePicker';
 
@@ -47,23 +45,18 @@ export function GameBoard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [shared, setShared] = useState(false);
-  const [now, setNow] = useState(Date.now());
-  const [offset, setOffset] = useState(0);
   const pending = useRef<{ answer: string; requestId: string } | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    void start();
     return () => {
       mounted.current = false;
-      clearInterval(timer);
     };
-  }, []);
+  }, [challenge.id]);
   const receive = (result: Game) => {
     if (!mounted.current) return;
     setGame(result);
-    setOffset(Date.parse(result.serverTime) - Date.now());
-    setNow(Date.now());
   };
   async function start(restart = false) {
     setBusy(true);
@@ -106,12 +99,6 @@ export function GameBoard({
       if (mounted.current) setBusy(false);
     }
   }
-  const elapsed = game
-    ? Math.max(
-        0,
-        (game.finishedAt ? Date.parse(game.finishedAt) : now + offset) - Date.parse(game.startedAt),
-      )
-    : 0;
   const playing = game?.status === 'playing';
   const terminal = game && !playing;
   const label =
@@ -120,24 +107,6 @@ export function GameBoard({
       : challenge.mode === 'acronym'
         ? 'O que essa sigla significa?'
         : 'Qual linguagem está por trás desse framework?';
-  const startContent = (
-    <>
-      <h3>{practice ? 'Um bom dia para praticar.' : 'Um código. Cinco tentativas.'}</h3>
-      <p>
-        {practice
-          ? 'Revise seus conhecimentos, no seu ritmo.'
-          : 'Observe as pistas e confie no que você sabe.'}
-      </p>
-      <button className="button primary" onClick={() => void start()} disabled={busy}>
-        {busy ? (
-          <LoaderCircle className="spin" size={17} />
-        ) : (
-          <Play size={16} fill="currentColor" />
-        )}{' '}
-        {challenge.status ? 'Retomar desafio' : 'Começar desafio'}
-      </button>
-    </>
-  );
   return (
     <section className="game-card" aria-label="Área do desafio">
       <div className="game-meta">
@@ -152,7 +121,10 @@ export function GameBoard({
         </button>
       </div>
       {challenge.mode === 'code' ? (
-        <CodeEditor content={game?.content}>{startContent}</CodeEditor>
+        <CodeEditor content={game?.content}>
+          <LoaderCircle className="spin" size={25} />
+          <p>{error ? 'Não foi possível carregar o desafio.' : 'Carregando desafio…'}</p>
+        </CodeEditor>
       ) : (
         <div className={`prompt-display ${game ? 'revealed' : ''}`}>
           <span className="prompt-icon">
@@ -172,20 +144,8 @@ export function GameBoard({
             </>
           ) : (
             <>
-              <h3>
-                {challenge.mode === 'acronym'
-                  ? 'Você conhece o significado?'
-                  : 'Reconhece esse framework?'}
-              </h3>
-              <p>Revele a pergunta para começar.</p>
-              <button className="button primary" onClick={() => void start()} disabled={busy}>
-                {busy ? (
-                  <LoaderCircle size={17} className="spin" />
-                ) : (
-                  <Play size={16} fill="currentColor" />
-                )}{' '}
-                {challenge.status ? 'Retomar desafio' : 'Começar desafio'}
-              </button>
+              <LoaderCircle size={25} className="spin" />
+              <p>{error ? 'Não foi possível carregar o desafio.' : 'Carregando desafio…'}</p>
             </>
           )}
         </div>
@@ -193,9 +153,6 @@ export function GameBoard({
       <div className="answer-area">
         <div className="answer-top">
           <label htmlFor="answer">{label}</label>
-          <span className="timer">
-            <Clock3 size={14} /> {formatDuration(elapsed)}
-          </span>
         </div>
         <form onSubmit={submit} className="answer-form">
           {challenge.mode === 'acronym' ? (
@@ -274,6 +231,15 @@ export function GameBoard({
         {error && (
           <div className="feedback error" role="alert">
             {error}
+            {!game && (
+              <button
+                className="button secondary small"
+                onClick={() => void start()}
+                disabled={busy}
+              >
+                Tentar novamente
+              </button>
+            )}
           </div>
         )}
         {!!game?.guesses.length && (
@@ -299,7 +265,9 @@ export function GameBoard({
         )}
         {game?.hint && (
           <div className="language-hint" role="note">
-            <span className="language-hint-title"><CircleHelp size={16} /> Dica da linguagem</span>
+            <span className="language-hint-title">
+              <CircleHelp size={16} /> Dica da linguagem
+            </span>
             <p>{game.hint}</p>
           </div>
         )}
@@ -326,9 +294,12 @@ export function GameBoard({
             <div className="result-actions">
               {game.status === 'won' && nextChallenge && onNext && (
                 <button className="button primary small" onClick={onNext}>
-                  Ir para {nextChallenge.mode === 'code'
+                  Ir para{' '}
+                  {nextChallenge.mode === 'code'
                     ? `o desafio ${difficultyNames[nextChallenge.difficulty].toLowerCase()}`
-                    : nextChallenge.mode === 'acronym' ? 'siglas' : 'frameworks'}
+                    : nextChallenge.mode === 'acronym'
+                      ? 'siglas'
+                      : 'frameworks'}
                   <ArrowRight size={15} />
                 </button>
               )}
@@ -363,8 +334,7 @@ export function GameBoard({
           <div className="login-nudge">
             <LockKeyhole size={14} />
             <span>
-              Jogue à vontade. <button onClick={onLogin}>Entre antes de começar</button> para
-              pontuar.
+              Jogue à vontade. <button onClick={onLogin}>Entre na sua conta</button> para pontuar.
             </span>
           </div>
         )}

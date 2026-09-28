@@ -685,13 +685,6 @@ button {
   font-size: 12px;
   font-weight: 650;
 }
-.timer {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #8b9084;
-  font: 10px var(--mono);
-}
 .answer-form {
   display: flex;
   gap: 10px;

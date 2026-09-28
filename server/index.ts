@@ -26,6 +26,7 @@ let seeding: Promise<void> | null = null;
 const app = createApp(db, {
   ...config,
   serveStatic: config.production,
+  rateLimits: process.env.NODE_ENV !== 'test',
   prepareDay:
     db.kind === 'local'
       ? async (now) => {

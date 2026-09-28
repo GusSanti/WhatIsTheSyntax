@@ -21,7 +21,7 @@ O código aparece em um editor de leitura com numeração de linhas, destaque vi
 
 ## Pontos e ranking
 
-É possível jogar sem conta. Para pontuar, o jogador precisa estar conectado antes de iniciar a partida. Cada desafio diário concede pontos uma única vez, considerando dificuldade, número de tentativas e tempo de resposta.
+É possível jogar sem conta. Para pontuar, o jogador precisa estar conectado ao jogar. Cada desafio diário concede pontos uma única vez, considerando dificuldade e número de tentativas.
 
 - **Ranking mensal:** resultados da edição de cada mês.
 - **Ranking geral:** soma dos resultados de todas as edições.
@@ -36,7 +36,7 @@ Cada jogador conectado pode escolher seu nome público no cabeçalho ou no ranki
 - Editor sem extensão de arquivo, identificação de linguagem ou metadados de gabarito.
 - Cinco tentativas por partida, com histórico e feedback individual. Após três erros em código ou frameworks, uma dica da linguagem é exibida.
 - Botão para seguir ao próximo desafio da edição após cada acerto.
-- Retomada de partidas preservando o relógio e as tentativas.
+- Retomada de partidas preservando as tentativas.
 - Compartilhamento de resultados sem a resposta.
 - Arquivo com as últimas 30 edições publicadas.
 - Ranking com dados reais do ambiente, sem jogadores fictícios.

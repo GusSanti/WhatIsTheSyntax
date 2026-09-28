@@ -76,7 +76,7 @@ CREATE TABLE game.game_sessions (
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 5),
   guesses jsonb NOT NULL DEFAULT '[]'::jsonb,
   points integer NOT NULL DEFAULT 0 CHECK (points >= 0),
-  scoring_version integer NOT NULL DEFAULT 1,
+  scoring_version integer NOT NULL DEFAULT 2,
   started_at timestamptz NOT NULL DEFAULT now(),
   finished_at timestamptz,
   CHECK (NOT ranked OR profile_id IS NOT NULL),
@@ -100,5 +100,6 @@ DO $$ BEGIN
 END $$;
 INSERT INTO game.schema_migrations(name) VALUES
   ('001_initial.sql'),('002_profile_avatar.sql'),('003_simplify_catalog.sql'),
-  ('004_guesses_in_sessions.sql'),('005_five_attempts_and_hints.sql');
+  ('004_guesses_in_sessions.sql'),('005_five_attempts_and_hints.sql'),
+  ('006_score_by_attempt.sql');
 COMMIT;

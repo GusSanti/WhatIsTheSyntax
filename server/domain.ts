@@ -21,9 +21,17 @@ export function normalizeLanguage(value: string) {
   return value.normalize('NFKC').trim().toLocaleLowerCase('en-US').replace(/\s+/g, ' ');
 }
 const LANGUAGE_ALIASES: Record<string, string> = {
-  csharp: 'c#', 'c sharp': 'c#', cpp: 'c++', 'c plus plus': 'c++',
-  js: 'javascript', 'java script': 'javascript', ts: 'typescript',
-  'type script': 'typescript', py: 'python', rb: 'ruby', golang: 'go',
+  csharp: 'c#',
+  'c sharp': 'c#',
+  cpp: 'c++',
+  'c plus plus': 'c++',
+  js: 'javascript',
+  'java script': 'javascript',
+  ts: 'typescript',
+  'type script': 'typescript',
+  py: 'python',
+  rb: 'ruby',
+  golang: 'go',
 };
 export function resolveLanguage(value: string) {
   const normalized = normalizeLanguage(value);
@@ -79,16 +87,9 @@ export function nextReset(now = new Date()) {
   }
   return new Date(high).toISOString();
 }
-export function calculatePoints(difficulty: Difficulty, attempt: number, elapsedMs: number) {
-  if (
-    !Number.isInteger(attempt) ||
-    attempt < 1 ||
-    attempt > 5 ||
-    !Number.isFinite(elapsedMs) ||
-    elapsedMs < 0
-  )
+export function calculatePoints(difficulty: Difficulty, attempt: number) {
+  if (!Number.isInteger(attempt) || attempt < 1 || attempt > 5)
     throw new Error('Invalid scoring input');
   const base = BASE_POINTS[difficulty];
-  const speedBonus = base * 0.25 * Math.max(0, 1 - elapsedMs / 120_000);
-  return Math.round((base + speedBonus) * [1, 0.7, 0.4, 0.2, 0.1][attempt - 1]);
+  return Math.round(base * [1, 0.7, 0.4, 0.2, 0.1][attempt - 1]);
 }

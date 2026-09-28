@@ -7,10 +7,10 @@ test('jornada de visitante, editor sem metadados, navegação e treino', async (
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Você conhece essa linguagem?' })).toBeVisible();
-  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
   await expect(page.locator('.code-editor code')).toBeVisible();
   await expect(page.locator('.code-editor code')).toContainText('const scores');
+  await expect(page.getByRole('button', { name: /^(Começar|Retomar) desafio$/ })).toHaveCount(0);
+  await expect(page.locator('.timer')).toHaveCount(0);
   expect(await page.locator('.code-editor').innerHTML()).not.toMatch(
     /javascript|typescript|language-|data-lang|data-language|\.js\b/i,
   );
@@ -24,15 +24,16 @@ test('jornada de visitante, editor sem metadados, navegação e treino', async (
   await expect(page.getByText('Boa! Você reconheceu as pistas.')).toBeVisible();
   await expect(page.getByText('Sem pontuação', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Retomar desafio', exact: true }).click();
   await expect(page.getByText('Boa! Você reconheceu as pistas.')).toBeVisible();
   await page.getByRole('button', { name: 'Ir para o desafio médio' }).click();
-  await expect(page.getByRole('group', { name: 'Dificuldade' }).getByRole('button', { name: /Médio/ })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  await expect(
+    page.getByRole('group', { name: 'Dificuldade' }).getByRole('button', { name: /Médio/ }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#answer')).toBeEnabled();
   await page.locator('#answer').fill('Ruby');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await page.getByRole('button', { name: 'Ir para o desafio difícil' }).click();
-  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  await expect(page.locator('#answer')).toBeEnabled();
   for (const wrong of ['Python', 'Java']) {
     await page.locator('#answer').fill(wrong);
     await page.getByRole('button', { name: 'Enviar', exact: true }).click();
@@ -46,13 +47,13 @@ test('jornada de visitante, editor sem metadados, navegação e treino', async (
   await page.locator('#answer').fill('Julia');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await page.getByRole('button', { name: 'Ir para siglas' }).click();
-  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  await expect(page.locator('#answer')).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'SaaS', exact: true })).toBeVisible();
   await page.locator('#answer').fill('SOFTWARE AS A SERVICE');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(page.getByText('Boa! Você reconheceu as pistas.')).toBeVisible();
   await page.getByRole('button', { name: 'Ir para frameworks' }).click();
-  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  await expect(page.locator('#answer')).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'Django', exact: true })).toBeVisible();
   await page.getByRole('navigation').getByRole('link', { name: 'Arquivo', exact: true }).click();
   await expect(page.locator('.archive-card')).toHaveCount(7);
@@ -61,7 +62,7 @@ test('jornada de visitante, editor sem metadados, navegação e treino', async (
     .first()
     .getByRole('button', { name: 'Siglas', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Começar desafio', exact: true }).click();
+  await expect(page.locator('#answer')).toBeEnabled();
   await page.locator('#answer').fill('Application Programming Interface');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Treinar novamente' })).toBeVisible();
@@ -101,8 +102,7 @@ test('modal acessível e conta local para revisar o ranking', async ({ page }, t
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(page.getByText('Conta local', { exact: true })).toBeAttached();
   await page.getByRole('navigation').getByRole('link', { name: 'Siglas', exact: true }).click();
-  const start = page.getByRole('button', { name: /^(Começar|Retomar) desafio$/ });
-  await start.click();
+  await expect(page.getByRole('heading', { name: 'SaaS', exact: true })).toBeVisible();
   if (await page.locator('#answer').isEnabled()) {
     await page.locator('#answer').fill('Software as a Service');
     await page.getByRole('button', { name: 'Enviar', exact: true }).click();

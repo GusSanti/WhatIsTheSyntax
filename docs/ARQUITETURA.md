@@ -8,7 +8,7 @@ Este documento descreve a implementação da primeira versão e suas decisões. 
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `web/`                                  | Interface React, estilos, componentes, navegação e cliente HTTP. É a única aplicação entregue ao navegador. |
 | `web/src/components/CodeEditor.tsx`     | Exibição do trecho como texto, numeração e destaque genérico de tokens.                                     |
-| `web/src/components/GameBoard.tsx`      | Início da partida, envio de palpites, cronômetro visual, histórico e resultado.                             |
+| `web/src/components/GameBoard.tsx`      | Abertura automática da partida, envio de palpites, histórico e resultado.                             |
 | `web/src/components/LanguagePicker.tsx` | Seleção pesquisável com interação por teclado.                                                              |
 | `web/src/components/OtherPages.tsx`     | Arquivo e ranking.                                                                                          |
 | `server/app.ts`                         | Rotas HTTP, validação dos formatos, limites de requisições e respostas públicas.                            |
@@ -44,7 +44,7 @@ sequenceDiagram
     API-->>React: Acerto/erro, tentativas restantes e pontos
 ```
 
-O conteúdo só é revelado após clicar em **Começar desafio**. Isso define um início explícito para o cronômetro e permite entrar antes da partida. Fechar a aba, trocar o modo ou atualizar a página não reinicia o relógio. A retomada retorna a mesma partida do dia para aquela identidade.
+O conteúdo é revelado automaticamente ao abrir o desafio. Fechar a aba, trocar o modo ou atualizar a página não reinicia as tentativas. A retomada retorna a mesma partida do dia para aquela identidade.
 
 ## Modelo do banco
 
@@ -98,19 +98,21 @@ Uma resposta repetida não consome uma nova tentativa; aliases da mesma linguage
 
 | Desafio        | Base | Máximo na primeira tentativa |
 | -------------- | ---: | ---------------------------: |
-| Código fácil   |  100 |                          125 |
-| Código médio   |  200 |                          250 |
-| Código difícil |  300 |                          375 |
-| Sigla          |  100 |                          125 |
-| Framework      |  100 |                          125 |
+| Código fácil   |  100 |                          100 |
+| Código médio   |  200 |                          200 |
+| Código difícil |  300 |                          300 |
+| Sigla          |  100 |                          100 |
+| Framework      |  100 |                          100 |
 
 A regra v1 é:
 
-**Pontos = arredondar((base + bônus de tempo) × fator da tentativa).**
+**Pontos = arredondar(base × fator da tentativa).**
 
-O bônus começa em 25% da base e cai linearmente até zero aos 120 segundos. O fator vale 1 na primeira tentativa, 0,7 na segunda, 0,4 na terceira, 0,2 na quarta e 0,1 na quinta. Depois de dois minutos ainda é possível acertar e receber a base ajustada pelas tentativas. Exemplo: um desafio médio acertado em 60 segundos na segunda tentativa rende **158 pontos**.
+O fator vale 1 na primeira tentativa, 0,7 na segunda, 0,4 na terceira, 0,2 na quarta e 0,1 na quinta. Exemplo: um desafio médio acertado na segunda tentativa rende **140 pontos**, independentemente do tempo gasto.
 
-O máximo teórico por edição é 1.000 pontos. O tempo considerado vem dos horários registrados no servidor; o cronômetro da tela apenas apresenta essa informação.
+O máximo teórico por edição é 800 pontos.
+
+A migração `006_score_by_attempt.sql` recalcula as vitórias anteriores e o total dos perfis pela nova regra. Em um Supabase já atualizado até a versão 005, execute `database/supabase_manual_score_by_attempt.sql` antes de publicar esta versão da API.
 
 Só uma partida iniciada com autenticação, referente à edição atual, pode pontuar. Visitantes, treinos e partidas vencidas pela virada do dia recebem zero. Entrar depois de jogar como visitante não migra ou credita o resultado anterior: contas e visitantes possuem identidades separadas.
 

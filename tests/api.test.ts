@@ -167,20 +167,28 @@ test('conta local: ponto atômico, tentativa idempotente e requisições concorr
   ]);
   for (const result of results) {
     assert.equal(result.status, 200);
-    assert.equal(result.body.points, 113);
+    assert.equal(result.body.points, 100);
     assert.equal(result.body.guesses.length, 1);
   }
   await send(agent, game, 'Python', requestId).expect(409);
-  const scored = await db.query<{ points: number; guesses: { requestId: string; text: string }[] }>('SELECT points,guesses FROM game.game_sessions WHERE id=$1', [game.id]);
-  assert.equal(scored.rows[0].points, 113);
-  assert.deepEqual(scored.rows[0].guesses.map((guess) => [guess.requestId, guess.text]), [[requestId, 'js']]);
-  const total = await db.query<{ points: number }>('SELECT points FROM game.profiles WHERE id=$1', [boot.profile?.id]);
-  assert.equal(total.rows[0].points, 113);
+  const scored = await db.query<{ points: number; guesses: { requestId: string; text: string }[] }>(
+    'SELECT points,guesses FROM game.game_sessions WHERE id=$1',
+    [game.id],
+  );
+  assert.equal(scored.rows[0].points, 100);
+  assert.deepEqual(
+    scored.rows[0].guesses.map((guess) => [guess.requestId, guess.text]),
+    [[requestId, 'js']],
+  );
+  const total = await db.query<{ points: number }>('SELECT points FROM game.profiles WHERE id=$1', [
+    boot.profile?.id,
+  ]);
+  assert.equal(total.rows[0].points, 100);
   const afterBoot: Bootstrap = (await agent.get('/api/bootstrap')).body;
-  assert.equal(afterBoot.profile?.totalPoints, 113);
-  assert.equal(afterBoot.profile?.monthlyPoints, 113);
+  assert.equal(afterBoot.profile?.totalPoints, 100);
+  assert.equal(afterBoot.profile?.monthlyPoints, 100);
   const ranking = (await agent.get('/api/ranking?period=month').expect(200)).body;
-  assert.equal(ranking.own.points, 113);
+  assert.equal(ranking.own.points, 100);
   assert.equal(ranking.entries[0].position, 1);
 });
 
@@ -239,7 +247,7 @@ test('treino autenticado pode ser refeito e nunca altera a pontuação', async (
   assert.equal(afterBoot.profile?.totalPoints, beforeBoot.profile?.totalPoints);
 });
 
-test('cliente não pode forjar pontos, tentativa, tempo, identidade ou desafio futuro', async () => {
+test('cliente não pode forjar pontos, tentativa, identidade ou desafio futuro', async () => {
   const agent = request.agent(app);
   const game = await start(agent);
   await agent
@@ -277,10 +285,10 @@ test('virada de mês expira partida antiga, mantém geral e zera mensal', async 
   assert.equal(expired.status, 'expired');
   assert.equal(expired.points, 0);
   const boot: Bootstrap = (await agent.get('/api/bootstrap')).body;
-  assert.equal(boot.profile?.totalPoints, 113);
+  assert.equal(boot.profile?.totalPoints, 100);
   assert.equal(boot.profile?.monthlyPoints, 0);
   assert.equal((await agent.get('/api/ranking?period=month')).body.entries.length, 0);
-  assert.equal((await agent.get('/api/ranking?period=all')).body.entries[0].points, 113);
+  assert.equal((await agent.get('/api/ranking?period=all')).body.entries[0].points, 100);
 });
 
 test('produção desativa login local mesmo com flag ligada', async () => {
