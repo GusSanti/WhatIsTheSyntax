@@ -21,6 +21,7 @@ export const config = {
   origin: process.env.APP_ORIGIN || 'http://localhost:5173',
   databaseUrl: process.env.DATABASE_URL || '',
   databaseSsl: process.env.DATABASE_SSL === 'true',
+  databaseCaCert: process.env.DATABASE_CA_CERT || '',
   databaseCaCertFile: process.env.DATABASE_CA_CERT_FILE || '',
   dataDir: process.env.LOCAL_DATABASE_DIR || localRoot,
   localAuth: process.env.NODE_ENV !== 'production' && process.env.LOCAL_DEMO_AUTH !== 'false',

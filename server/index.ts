@@ -15,6 +15,7 @@ const db = await openDatabase(
   config.databaseSsl,
   config.dataDir,
   config.databaseCaCertFile,
+  { caCert: config.databaseCaCert },
 );
 if (db.kind === 'local') {
   await migrate(db);

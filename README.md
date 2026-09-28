@@ -60,13 +60,15 @@ Os gabaritos não fazem parte do pacote da interface. O catálogo de nomes usado
 
 Os três modos, o arquivo, os rankings e a persistência local estão implementados. O catálogo inicial contém 40 desafios distribuídos em oito edições demonstrativas. Sua dificuldade é editorial e ainda precisa ser calibrada com jogadores.
 
-A integração remota com PostgreSQL/Supabase está preparada. O login Google e a hospedagem pública ainda precisam ser configurados e verificados com as credenciais do projeto. Um painel de administração e um catálogo inédito de produção não fazem parte desta entrega.
+A integração remota com PostgreSQL/Supabase e a entrada para Vercel Functions estão preparadas. O login Google e a hospedagem pública ainda precisam ser configurados e verificados com as credenciais do projeto. Um painel de administração e um catálogo inédito de produção não fazem parte desta entrega.
 
 O conteúdo de demonstração está no repositório para facilitar a revisão. As perguntas de um ranking público devem ser mantidas em um catálogo privado e revisado antes de sua publicação.
 
 ## Arquitetura
 
 O [mapa do projeto](docs/ARQUITETURA.md) descreve as pastas, as tabelas, o fluxo de validação, a proteção dos gabaritos e as regras de pontuação.
+
+O [guia de hospedagem na Vercel](docs/VERCEL.md) reúne as variáveis, os ajustes no Supabase e as verificações após o deploy.
 
 ## Referências de experiência
 

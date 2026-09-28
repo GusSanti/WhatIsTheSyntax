@@ -164,7 +164,7 @@ Os testes verificam normalização, pontuação, mudança de dia/mês, privacida
 
 O Playwright inicia servidores em portas separadas (5183/3011), com banco em memória e sem credenciais externas, para não alterar as partidas da revisão local.
 
-O login Google e a conexão com PostgreSQL remoto já foram exercitados no ambiente local do proprietário. A foto Google ainda depende de verificação visual com uma sessão real após esta alteração. O servidor está preparado como aplicação Node persistente; não há implantação pública ou configuração de Vercel Functions nesta versão.
+O login Google e a conexão com PostgreSQL remoto já foram exercitados no ambiente local do proprietário. A foto Google ainda depende de verificação visual com uma sessão real após esta alteração. O servidor local continua como aplicação Node persistente; a entrada de Vercel Functions está em `api/index.ts`, mas a implantação pública ainda precisa de configuração e verificação.
 
 O limite de requisições é mantido por processo, adequado à primeira versão local. Uma implantação com várias instâncias precisa de limitação compartilhada ou no provedor de hospedagem. Backups, retenção de sessões antigas, administração editorial, alteração de apelido e gerenciamento de conta ainda precisam de uma próxima etapa antes de operação pública contínua.
 

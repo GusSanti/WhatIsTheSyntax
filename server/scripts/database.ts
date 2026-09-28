@@ -7,6 +7,7 @@ const db = await openDatabase(
   config.databaseSsl,
   config.dataDir,
   config.databaseCaCertFile,
+  { caCert: config.databaseCaCert },
 );
 try {
   await migrate(db);
