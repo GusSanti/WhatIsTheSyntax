@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { apiRequestPath, startupCode } from '../api/index.js';
+import { connectionStringForTls } from '../server/postgres-db.js';
 
 test('roteamento da função preserva caminho e parâmetros da API', () => {
   assert.equal(apiRequestPath('/api/index?route=bootstrap'), '/api/bootstrap');
@@ -35,4 +36,12 @@ test('diagnóstico de inicialização não devolve credenciais ou detalhes do ba
     startupCode(Object.assign(new Error('schema privado'), { code: '42P01' })),
     'DATABASE_SCHEMA',
   );
+});
+
+test('opções TLS da URI não substituem o certificado passado ao driver', () => {
+  const url = 'postgresql://u:p@pooler.example:6543/postgres?sslmode=require&application_name=game';
+  const parsed = new URL(connectionStringForTls(url, true));
+  assert.equal(parsed.searchParams.has('sslmode'), false);
+  assert.equal(parsed.searchParams.get('application_name'), 'game');
+  assert.equal(connectionStringForTls(url, false), url);
 });

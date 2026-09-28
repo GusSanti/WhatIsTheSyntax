@@ -15,20 +15,22 @@ Importe a raiz do repositório. Se preencher os campos do painel, use **Build Co
 
 Configure estas variáveis no ambiente **Production**:
 
-| Nome                       | Valor                                                                                                                                  |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`             | Nova URL do Transaction pooler do Supabase                                                                                             |
-| `DATABASE_SSL`             | `true`                                                                                                                                 |
-| `DATABASE_CA_CERT`         | Conteúdo PEM completo do certificado baixado em Supabase → Database Settings → SSL Configuration                                       |
-| `APP_ORIGIN`               | Opcional na Vercel: a função aceita a origem HTTPS do próprio host da requisição. Se usar, informe a origem principal sem barra final. |
-| `SUPABASE_URL`             | URL HTTPS do projeto Supabase                                                                                                          |
-| `SUPABASE_PUBLISHABLE_KEY` | Chave publicável do mesmo projeto                                                                                                      |
-| `VISITOR_COOKIE_SECRET`    | Valor aleatório estável com ao menos 32 caracteres                                                                                     |
-| `LOCAL_DEMO_AUTH`          | `false`                                                                                                                                |
+| Nome                       | Valor                                                                                                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`             | Nova URL do Transaction pooler do Supabase                                                                                                            |
+| `DATABASE_SSL`             | `true`                                                                                                                                                |
+| `DATABASE_CA_CERT`         | Conteúdo PEM completo do certificado baixado em Supabase → Database Settings → SSL Configuration, necessário se a CA não for reconhecida pelo runtime |
+| `APP_ORIGIN`               | Opcional na Vercel: a função aceita a origem HTTPS do próprio host da requisição. Se usar, informe a origem principal sem barra final.                |
+| `SUPABASE_URL`             | URL HTTPS do projeto Supabase                                                                                                                         |
+| `SUPABASE_PUBLISHABLE_KEY` | Chave publicável do mesmo projeto                                                                                                                     |
+| `VISITOR_COOKIE_SECRET`    | Valor aleatório estável com ao menos 32 caracteres                                                                                                    |
+| `LOCAL_DEMO_AUTH`          | `false`                                                                                                                                               |
 
 Gere `VISITOR_COOKIE_SECRET` **no seu computador** com `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Copie o resultado diretamente para a variável da Vercel. Não o envie em mensagens nem o salve no repositório. O mesmo valor deve permanecer entre deploys, ou cookies de visitantes anteriores deixam de ser reconhecidos.
 
 Não configure `PORT` nem um `DATABASE_CA_CERT_FILE` apontando para uma pasta do Windows. A função usa uma conexão de banco por instância, sem abrir conexões antecipadamente. O proxy da Vercel é considerado um salto para identificação de IP; seu `x-forwarded-for` é preenchido pela plataforma. A limitação de requisições atual é mantida por instância, não compartilhada globalmente.
+
+O driver verifica o certificado TLS (`rejectUnauthorized: true`). Quando `DATABASE_URL` contém parâmetros como `sslmode=require`, o adaptador os remove antes de criar a conexão para preservar o certificado configurado em `DATABASE_CA_CERT`. Não use `rejectUnauthorized: false` para contornar um erro de certificado.
 
 Para Preview, use variáveis e URLs de redirecionamento próprias. A função valida envios `POST` contra o host HTTPS da própria implantação, incluindo URLs de Preview.
 

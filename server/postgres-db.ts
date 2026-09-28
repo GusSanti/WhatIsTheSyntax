@@ -3,6 +3,15 @@ import { resolve } from 'node:path';
 import pg from 'pg';
 import type { Database } from './db.js';
 
+export function connectionStringForTls(url: string, ssl: boolean): string {
+  if (!ssl) return url;
+  const parsed = new URL(url);
+  // node-postgres substitutes its ssl object when any of these URI options exist.
+  for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'])
+    parsed.searchParams.delete(key);
+  return parsed.toString();
+}
+
 export async function openPostgresDatabase(
   url: string,
   ssl: boolean,
@@ -13,7 +22,7 @@ export async function openPostgresDatabase(
     options.caCert?.replace(/\\n/g, '\n') ||
     (caCertFile ? readFileSync(resolve(caCertFile), 'utf8') : undefined);
   const pool = new pg.Pool({
-    connectionString: url,
+    connectionString: connectionStringForTls(url, ssl),
     max: options.serverless ? 1 : 5,
     min: options.serverless ? 0 : 2,
     idleTimeoutMillis: options.serverless ? 10_000 : 5 * 60_000,
