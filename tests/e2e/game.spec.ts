@@ -1,6 +1,27 @@
 import { test, expect } from '@playwright/test';
 import { resolve } from 'node:path';
 
+test('alterna o tema no cabeçalho e mantém a escolha após recarregar', async ({ page }, testInfo) => {
+  await page.goto('/');
+  if (await page.locator('html').getAttribute('data-theme') === 'dark')
+    await page.getByRole('button', { name: 'Ativar modo claro' }).click();
+  await expect(page.getByRole('button', { name: 'Ativar modo escuro' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ativar modo escuro' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByRole('button', { name: 'Ativar modo claro' })).toBeVisible();
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dark-theme.png`, fullPage: true });
+  await page.getByRole('navigation').getByRole('link', { name: 'Ranking', exact: true }).click();
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dark-ranking.png`, fullPage: true });
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dark-modal.png` });
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Ativar modo claro' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.setViewportSize({ width: 320, height: 700 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('jornada de visitante, editor sem metadados, navegação e treino', async ({
   page,
 }, testInfo) => {

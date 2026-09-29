@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   font-family: 'DM Sans Variable', sans-serif;
   color: #252b2b;
   background: #f5f4ef;
@@ -165,6 +166,15 @@ button {
 }
 .icon-button:hover {
   background: #f0efe9;
+}
+.theme-button {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  background: #f5f4ef;
+  color: var(--ink);
+}
+.theme-button:hover {
+  background: #ecebe3;
 }
 .button {
   display: inline-flex;
@@ -2440,4 +2450,258 @@ td:last-child {
 .text-input::placeholder,
 .ranking-search input::placeholder {
   color: #727b68;
+}
+
+/* O editor de código já usa uma paleta escura nos dois temas. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #e7e9e1;
+  background: #171c1d;
+  --paper: #222a2b;
+  --ink: #e7e9e1;
+  --muted: #adb8ae;
+  --line: #394445;
+  --orange: #f19370;
+  --orange-hover: #dd7959;
+  --sage: #9eb59b;
+}
+:root[data-theme='dark'] ::selection {
+  background: #a94e38;
+  color: #fff;
+}
+:root[data-theme='dark'] .main-nav,
+:root[data-theme='dark'] .site-footer,
+:root[data-theme='dark'] .guess-history li,
+:root[data-theme='dark'] .login-nudge,
+:root[data-theme='dark'] .points-today,
+:root[data-theme='dark'] .daily-progress > .text-link,
+:root[data-theme='dark'] .archive-footer,
+:root[data-theme='dark'] .ranking-search,
+:root[data-theme='dark'] .ranking-footer,
+:root[data-theme='dark'] td,
+:root[data-theme='dark'] .local-login,
+:root[data-theme='dark'] .daily-progress > .points-today {
+  border-color: var(--line);
+}
+:root[data-theme='dark'] .theme-button,
+:root[data-theme='dark'] .icon-button:hover,
+:root[data-theme='dark'] .difficulty-tabs,
+:root[data-theme='dark'] .difficulty-tabs > button:hover:not(.selected),
+:root[data-theme='dark'] .edition-stamp,
+:root[data-theme='dark'] .result-panel,
+:root[data-theme='dark'] .daily-slots > button,
+:root[data-theme='dark'] .progress-track,
+:root[data-theme='dark'] .hint-card,
+:root[data-theme='dark'] .mode-pill,
+:root[data-theme='dark'] .count-badge,
+:root[data-theme='dark'] .archive-challenges button,
+:root[data-theme='dark'] .segmented,
+:root[data-theme='dark'] .steps-list li > span,
+:root[data-theme='dark'] .rule-score {
+  background: #2b3535;
+  border-color: #455253;
+}
+:root[data-theme='dark'] .theme-button:hover,
+:root[data-theme='dark'] .archive-challenges button:hover,
+:root[data-theme='dark'] .picker-options li:hover,
+:root[data-theme='dark'] .picker-options li.active {
+  background: #384645;
+}
+:root[data-theme='dark'] .game-card,
+:root[data-theme='dark'] .modal,
+:root[data-theme='dark'] .language-picker input,
+:root[data-theme='dark'] .text-input,
+:root[data-theme='dark'] .picker-options,
+:root[data-theme='dark'] .prompt-display,
+:root[data-theme='dark'] .filter-label select {
+  background: var(--paper);
+  border-color: var(--line);
+  color: var(--ink);
+}
+:root[data-theme='dark'] .language-picker input:disabled,
+:root[data-theme='dark'] .text-input:disabled {
+  background: #303838;
+}
+:root[data-theme='dark'] .button.dark {
+  background: #dce4db;
+  color: #1c2525;
+}
+:root[data-theme='dark'] .button.dark:hover {
+  background: #fff;
+}
+:root[data-theme='dark'] .button.primary {
+  color: #252321;
+}
+:root[data-theme='dark'] .button.primary:hover:not(:disabled) {
+  color: #fff;
+}
+:root[data-theme='dark'] .button.secondary,
+:root[data-theme='dark'] .google-button {
+  background: #303a3a;
+  border-color: #526160;
+  color: var(--ink);
+}
+:root[data-theme='dark'] .button.secondary:hover:not(:disabled) {
+  background: #3a4746;
+  border-color: #758680;
+}
+:root[data-theme='dark'] .avatar {
+  background: #374440;
+  border-color: #617267;
+  color: #d9e2d3;
+}
+:root[data-theme='dark'] .prompt-display {
+  background-image: radial-gradient(#61706a35 0.8px, transparent 0.8px);
+}
+:root[data-theme='dark'] .prompt-icon,
+:root[data-theme='dark'] .calendar-icon,
+:root[data-theme='dark'] .explore-icon,
+:root[data-theme='dark'] .trophy-circle {
+  background: #36413e;
+  border-color: #52615a;
+  color: #d5b589;
+}
+:root[data-theme='dark'] .language-hint,
+:root[data-theme='dark'] .result-panel.won,
+:root[data-theme='dark'] .daily-slots > button.done,
+:root[data-theme='dark'] .your-row {
+  background: #263b31;
+  border-color: #476453;
+  color: #c0dfbd;
+}
+:root[data-theme='dark'] .daily-slots > button.missed,
+:root[data-theme='dark'] .attempt-indicators > span.incorrect,
+:root[data-theme='dark'] .feedback.error {
+  background: #452f2d;
+  border-color: #79504b;
+  color: #ffd0bc;
+}
+:root[data-theme='dark'] .attempt-indicators > span.correct {
+  background: #2c4535;
+  border-color: #50755a;
+  color: #c0e6be;
+}
+:root[data-theme='dark'] .attempt-indicators > span:not(.attempt-caption) {
+  border-color: #52605a;
+}
+:root[data-theme='dark'] th {
+  background: #2b3535;
+  color: #b8c7b3;
+}
+:root[data-theme='dark'] .page-hero p,
+:root[data-theme='dark'] .section-heading p,
+:root[data-theme='dark'] .hint-card p,
+:root[data-theme='dark'] .your-position p,
+:root[data-theme='dark'] .steps-list p,
+:root[data-theme='dark'] .empty-state p,
+:root[data-theme='dark'] .modal-description,
+:root[data-theme='dark'] .modal-footnote,
+:root[data-theme='dark'] .setup-note,
+:root[data-theme='dark'] .local-login p,
+:root[data-theme='dark'] .attempt-caption,
+:root[data-theme='dark'] .points-caption,
+:root[data-theme='dark'] .login-nudge,
+:root[data-theme='dark'] .card-eyebrow,
+:root[data-theme='dark'] .progress-caption,
+:root[data-theme='dark'] .reset-card > span,
+:root[data-theme='dark'] .reset-card small,
+:root[data-theme='dark'] .explore-card p,
+:root[data-theme='dark'] .site-footer > div > span:last-child,
+:root[data-theme='dark'] .site-footer > span,
+:root[data-theme='dark'] .ranking-footer,
+:root[data-theme='dark'] .archive-footer,
+:root[data-theme='dark'] .archive-card > p,
+:root[data-theme='dark'] .mode-heading,
+:root[data-theme='dark'] .meta-label,
+:root[data-theme='dark'] .quiet-button,
+:root[data-theme='dark'] .header-center,
+:root[data-theme='dark'] .nav-right,
+:root[data-theme='dark'] .nav-inner > a,
+:root[data-theme='dark'] .difficulty-tabs > button,
+:root[data-theme='dark'] .difficulty-tabs > button small,
+:root[data-theme='dark'] .edition-stamp,
+:root[data-theme='dark'] .edition-stamp small,
+:root[data-theme='dark'] .icon-button,
+:root[data-theme='dark'] .archive-tag,
+:root[data-theme='dark'] .ranking-controls > span,
+:root[data-theme='dark'] .rank-position,
+:root[data-theme='dark'] .footer-brand,
+:root[data-theme='dark'] .footer-brand svg {
+  color: #afbbb1;
+}
+:root[data-theme='dark'] .nav-inner > a.active,
+:root[data-theme='dark'] .nav-inner > a:hover,
+:root[data-theme='dark'] .quiet-button:hover {
+  color: var(--orange);
+}
+:root[data-theme='dark'] .theme-button,
+:root[data-theme='dark'] .difficulty-tabs > button.selected,
+:root[data-theme='dark'] .edition-stamp > span,
+:root[data-theme='dark'] .prompt-display h3,
+:root[data-theme='dark'] .hint-card h3,
+:root[data-theme='dark'] .empty-state h3,
+:root[data-theme='dark'] .your-position h3,
+:root[data-theme='dark'] .ranking-search input,
+:root[data-theme='dark'] .table-player,
+:root[data-theme='dark'] .table-player small,
+:root[data-theme='dark'] .segmented button.selected {
+  color: var(--ink);
+}
+:root[data-theme='dark'] .prompt-display p,
+:root[data-theme='dark'] .filter-label,
+:root[data-theme='dark'] .archive-challenges button,
+:root[data-theme='dark'] .segmented button,
+:root[data-theme='dark'] th,
+:root[data-theme='dark'] td,
+:root[data-theme='dark'] .rank-position,
+:root[data-theme='dark'] .steps-list strong,
+:root[data-theme='dark'] .rule-score > span,
+:root[data-theme='dark'] .rule-score strong,
+:root[data-theme='dark'] .result-panel strong,
+:root[data-theme='dark'] .result-panel p,
+:root[data-theme='dark'] .reset-card strong,
+:root[data-theme='dark'] .progress-caption strong,
+:root[data-theme='dark'] .count-badge,
+:root[data-theme='dark'] .mode-pill,
+:root[data-theme='dark'] .back-link,
+:root[data-theme='dark'] .text-link,
+:root[data-theme='dark'] .login-nudge button,
+:root[data-theme='dark'] .explore-card > div > span {
+  color: #bfd1bc;
+}
+:root[data-theme='dark'] .language-picker input::placeholder,
+:root[data-theme='dark'] .text-input::placeholder,
+:root[data-theme='dark'] .ranking-search input::placeholder {
+  color: #a5b4a9;
+}
+
+@media (max-width: 380px) {
+  .header-inner {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .brand {
+    gap: 7px;
+    font-size: 13px;
+  }
+  .brand strong {
+    font-size: 16px;
+  }
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+  .login-button {
+    padding: 0 7px;
+    gap: 4px;
+  }
+  .login-button > svg:last-child {
+    display: none;
+  }
+  .theme-button {
+    width: 32px;
+  }
 }

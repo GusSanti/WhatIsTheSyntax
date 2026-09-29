@@ -14,8 +14,10 @@ import {
   History,
   LoaderCircle,
   LogOut,
+  Moon,
   Pencil,
   Sparkles,
+  Sun,
   Target,
   Trophy,
   UserRound,
@@ -48,6 +50,9 @@ const readPage = () => {
 };
 
 export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+  );
   const [page, setPage] = useState(readPage);
   const [boot, setBoot] = useState<Bootstrap | null>(null);
   const [error, setError] = useState('');
@@ -61,6 +66,20 @@ export default function App() {
   const [practice, setPractice] = useState<DailyChallenge | null>(null);
   const [clock, setClock] = useState(Date.now());
   const [resetOffset, setResetOffset] = useState(0);
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = nextTheme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      'content',
+      nextTheme === 'dark' ? '#171c1d' : '#f5f4ef',
+    );
+    try {
+      localStorage.setItem('theme', nextTheme);
+    } catch {
+      // O tema continua funcionando quando o navegador bloqueia o armazenamento.
+    }
+    setTheme(nextTheme);
+  };
   const refresh = useCallback(async () => {
     try {
       const result = await api<Bootstrap>('/bootstrap');
@@ -305,6 +324,15 @@ export default function App() {
                 <UserRound size={16} /> Entrar <ArrowRight size={15} />
               </button>
             )}
+            <button
+              className="icon-button theme-button"
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro'}
+              title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+            >
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            </button>
           </div>
         </div>
         <nav className="main-nav" aria-label="Navegação principal">

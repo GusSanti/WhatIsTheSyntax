@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f4ef" />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem('theme');
+        const theme = savedTheme === 'light' || savedTheme === 'dark'
+          ? savedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        if (theme === 'dark')
+          document.querySelector('meta[name="theme-color"]').content = '#171c1d';
+      } catch {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
     <meta
       name="description"
       content="Um código. Cinco tentativas. Descubra linguagens de programação, desvende siglas e teste seu conhecimento todos os dias."
